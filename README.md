@@ -60,24 +60,31 @@ speaks it works:
 
 | Variable       | Meaning                              | Example                            |
 | -------------- | ------------------------------------ | ---------------------------------- |
+| `LLM_PROVIDER` | `auto`, `minimax`, `kimi`, `openai`, `claude`, or `compatible` | `auto` |
 | `LLM_BASE_URL` | Provider endpoint (blank = OpenAI)   | `https://api.moonshot.ai/v1`       |
 | `LLM_API_KEY`  | Provider API key (server-side only)  | `sk-...`                           |
-| `LLM_MODEL`    | A vision-capable model id            | `moonshot-v1-32k-vision-preview`   |
+| `LLM_MODEL`    | A vision-capable model id            | `kimi-k2.6`                        |
+| `LLM_MAX_TOKENS` | Output token budget                | `3000`                             |
 | `LLM_THINKING` | MiniMax-M3 thinking mode             | `adaptive`                         |
 | `PORT`         | Port the server listens on           | `5173` (default)                   |
 
-Known-good combos:
+Provider examples:
 
-| Provider        | `LLM_BASE_URL`                              | `LLM_MODEL`                                  |
-| --------------- | ------------------------------------------- | -------------------------------------------- |
-| Kimi (Moonshot) | `https://api.moonshot.ai/v1` (`.cn` in CN)  | `moonshot-v1-32k-vision-preview`, `kimi-k2.5`|
-| MiniMax         | `https://api.minimax.io/v1`                 | `MiniMax-M3`                                 |
-| OpenAI          | `https://api.openai.com/v1` (or blank)      | `gpt-4o`                                     |
-| Claude          | `https://api.anthropic.com/v1/`             | `claude-opus-4-8`                            |
+| Provider        | `LLM_PROVIDER` | `LLM_BASE_URL`                              | `LLM_MODEL`                                  |
+| --------------- | -------------- | ------------------------------------------- | -------------------------------------------- |
+| Kimi (Moonshot) | `kimi`         | `https://api.moonshot.ai/v1` (`.cn` in CN)  | `kimi-k2.6`                                  |
+| MiniMax         | `minimax`      | `https://api.minimax.io/v1`                 | `MiniMax-M3`                                 |
+| OpenAI          | `openai`       | `https://api.openai.com/v1` (or blank)      | `gpt-4o`                                     |
+| Claude          | `claude`       | `https://api.anthropic.com/v1/`             | `claude-opus-4-8`                            |
 
 For `MiniMax-M3`, `LLM_THINKING=adaptive` explicitly keeps model thinking on and
 the backend asks MiniMax to split reasoning away from the final content. The
 backend still extracts only the final JSON answer.
+
+Provider-specific request parameters are isolated: MiniMax thinking fields are
+only sent to MiniMax, Claude uses `max_tokens`, and Kimi/OpenAI use
+`max_completion_tokens`. If a compatible endpoint rejects the token parameter,
+the backend retries once with the alternate parameter.
 
 ## Local development
 
@@ -119,7 +126,7 @@ Silicon and on a Raspberry Pi (arm64).
 3. Name it `mahjong`, choose **Repository**, and point it at your repo URL, the
    branch, and the compose path `docker-compose.yml`.
 4. Under **Environment variables**, add:
-   - `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` — your provider settings
+   - `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` — your provider settings
    - optionally `LLM_THINKING=adaptive` — MiniMax-M3 reasoning mode
    - optionally `APP_PORT` — the host port (default `5173`)
 5. **Deploy the stack.** Portainer clones the repo and runs the multi-stage build

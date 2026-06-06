@@ -19,13 +19,22 @@ import OpenAI from 'openai';
 // The API key never reaches the browser: the frontend only ever calls /api.
 // ---------------------------------------------------------------------------
 
-const { PORT, DIST_DIR, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_THINKING } =
-  process.env;
+const {
+  PORT,
+  DIST_DIR,
+  LLM_API_KEY,
+  LLM_BASE_URL,
+  LLM_MODEL,
+  LLM_PROVIDER,
+  LLM_THINKING,
+  LLM_MAX_TOKENS
+} = process.env;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(PORT) || 5173;
 const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
 const llmThinking = (LLM_THINKING || 'adaptive').toLowerCase();
+const maxOutputTokens = Number(LLM_MAX_TOKENS) || 3000;
 
 const SYSTEM_PROMPT = `You are an expert Japanese riichi mahjong tile recognizer. You are given ONE photo of a player's winning hand; called melds may be laid to the side and are often rotated. Identify every tile.
 
@@ -65,11 +74,64 @@ const getClient = (): OpenAI => {
 type ChatCompletionParams = Parameters<
   OpenAI['chat']['completions']['create']
 >[0] & {
+  max_tokens?: number;
+  max_completion_tokens?: number;
   thinking?: { type: 'disabled' | 'enabled' | 'adaptive' };
   reasoning_split?: boolean;
 };
 
-const isMiniMaxM3 = (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
+type Provider = 'minimax' | 'kimi' | 'openai' | 'claude' | 'compatible';
+
+const inferProvider = (): Provider => {
+  const explicit = (LLM_PROVIDER || 'auto').toLowerCase();
+  if (
+    explicit === 'minimax' ||
+    explicit === 'kimi' ||
+    explicit === 'openai' ||
+    explicit === 'claude' ||
+    explicit === 'anthropic' ||
+    explicit === 'compatible'
+  ) {
+    return explicit === 'anthropic' ? 'claude' : explicit;
+  }
+
+  const baseUrl = (LLM_BASE_URL || '').toLowerCase();
+  const model = (LLM_MODEL || '').toLowerCase();
+  if (baseUrl.includes('minimax') || model.startsWith('minimax')) {
+    return 'minimax';
+  }
+  if (
+    baseUrl.includes('moonshot') ||
+    baseUrl.includes('kimi') ||
+    model.startsWith('kimi') ||
+    model.startsWith('moonshot')
+  ) {
+    return 'kimi';
+  }
+  if (baseUrl.includes('anthropic') || model.startsWith('claude')) {
+    return 'claude';
+  }
+  if (!baseUrl || baseUrl.includes('openai')) return 'openai';
+  return 'compatible';
+};
+
+const provider = inferProvider();
+const isMiniMaxM3 =
+  provider === 'minimax' && (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
+
+const tokenParamForProvider = (
+  p: Provider
+): Pick<ChatCompletionParams, 'max_completion_tokens' | 'max_tokens'> =>
+  p === 'claude'
+    ? { max_tokens: maxOutputTokens }
+    : { max_completion_tokens: maxOutputTokens };
+
+const swapTokenParam = (params: ChatCompletionParams): ChatCompletionParams => {
+  const { max_completion_tokens, max_tokens, ...rest } = params;
+  return typeof max_completion_tokens === 'number'
+    ? { ...rest, max_tokens: max_completion_tokens }
+    : { ...rest, max_completion_tokens: max_tokens ?? maxOutputTokens };
+};
 
 const findJsonObject = (text: string): string | null => {
   const quotedAnchor = text.indexOf('"concealed"');
@@ -161,6 +223,35 @@ const contentToText = (content: unknown): string => {
   return '';
 };
 
+const errorMessage = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
+
+const createChatCompletion = async (params: ChatCompletionParams) => {
+  try {
+    return await getClient().chat.completions.create(params);
+  } catch (err) {
+    const message = errorMessage(err).toLowerCase();
+    if (
+      message.includes('max_completion_tokens') ||
+      message.includes('max_tokens')
+    ) {
+      console.warn('[recognize] retrying with alternate token parameter');
+      return await getClient().chat.completions.create(swapTokenParam(params));
+    }
+    if (
+      'thinking' in params ||
+      'reasoning_split' in params ||
+      message.includes('thinking') ||
+      message.includes('reasoning_split')
+    ) {
+      const { thinking, reasoning_split, ...withoutThinking } = params;
+      console.warn('[recognize] retrying without provider thinking extensions');
+      return await getClient().chat.completions.create(withoutThinking);
+    }
+    throw err;
+  }
+};
+
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
@@ -168,8 +259,10 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     mode: 'llm',
+    provider,
     configured: Boolean(LLM_API_KEY),
     thinking: isMiniMaxM3 ? llmThinking : 'prompt-only',
+    max_tokens: maxOutputTokens,
     model: LLM_MODEL ?? null,
     base_url: LLM_BASE_URL ?? 'https://api.openai.com/v1 (default)'
   });
@@ -200,7 +293,7 @@ app.post('/api/recognize', async (req, res) => {
 
     const completionParams: ChatCompletionParams = {
       model: LLM_MODEL,
-      max_completion_tokens: 3000,
+      ...tokenParamForProvider(provider),
       ...(isMiniMaxM3
         ? {
             thinking: {
@@ -225,8 +318,7 @@ app.post('/api/recognize', async (req, res) => {
       ]
     };
 
-    const completion =
-      await getClient().chat.completions.create(completionParams);
+    const completion = await createChatCompletion(completionParams);
 
     const raw = contentToText(completion.choices?.[0]?.message?.content);
     if (!raw.trim()) {
@@ -268,6 +360,8 @@ app.listen(port, () => {
   console.log(
     `  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`
   );
+  console.log(`  provider: ${provider}`);
+  console.log(`  max output tokens: ${maxOutputTokens}`);
   if (isMiniMaxM3) {
     console.log(`  MiniMax thinking: ${llmThinking}`);
   }
