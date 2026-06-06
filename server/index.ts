@@ -126,6 +126,11 @@ const tokenParamForProvider = (
     ? { max_tokens: maxOutputTokens }
     : { max_completion_tokens: maxOutputTokens };
 
+const temperatureParamForProvider = (
+  p: Provider
+): Pick<ChatCompletionParams, 'temperature'> =>
+  p === 'kimi' ? {} : { temperature: 0 };
+
 const swapTokenParam = (params: ChatCompletionParams): ChatCompletionParams => {
   const { max_completion_tokens, max_tokens, ...rest } = params;
   return typeof max_completion_tokens === 'number'
@@ -238,6 +243,11 @@ const createChatCompletion = async (params: ChatCompletionParams) => {
       console.warn('[recognize] retrying with alternate token parameter');
       return await getClient().chat.completions.create(swapTokenParam(params));
     }
+    if (message.includes('temperature')) {
+      const { temperature, ...withoutTemperature } = params;
+      console.warn('[recognize] retrying without temperature parameter');
+      return await getClient().chat.completions.create(withoutTemperature);
+    }
     if (
       'thinking' in params ||
       'reasoning_split' in params ||
@@ -294,6 +304,7 @@ app.post('/api/recognize', async (req, res) => {
     const completionParams: ChatCompletionParams = {
       model: LLM_MODEL,
       ...tokenParamForProvider(provider),
+      ...temperatureParamForProvider(provider),
       ...(isMiniMaxM3
         ? {
             thinking: {
@@ -302,7 +313,6 @@ app.post('/api/recognize', async (req, res) => {
             reasoning_split: true
           }
         : {}),
-      temperature: 0,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         {
