@@ -58,18 +58,60 @@ const getClient = (): OpenAI => {
   return openaiClient;
 };
 
-// Models sometimes wrap JSON in ```json ... ``` fences or add stray prose.
-// Strip fences, then take the outermost {...} and parse it.
+type ChatCompletionParams = Parameters<
+  OpenAI['chat']['completions']['create']
+>[0] & {
+  thinking?: { type: 'disabled' | 'enabled' | 'adaptive' };
+};
+
+const isMiniMaxM3 = (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
+
+const findJsonObject = (text: string): string | null => {
+  const anchor = text.indexOf('"concealed"');
+  if (anchor < 0) return null;
+  const start = text.lastIndexOf('{', anchor);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') depth += 1;
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+};
+
+// Models sometimes wrap JSON in fences, add stray prose, or (MiniMax M3 by
+// default) prepend <think>...</think>. Prefer the object containing our contract
+// key instead of blindly parsing the first brace in the response.
 const extractJson = (raw: string): unknown => {
   let text = raw.trim();
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence?.[1]) text = fence[1].trim();
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1 || end < start) {
+  const objectText = findJsonObject(text);
+  if (objectText === null) {
     throw new Error('No JSON object found in model output');
   }
-  return JSON.parse(text.slice(start, end + 1));
+  return JSON.parse(objectText);
 };
 
 // Some providers return message.content as an array of content parts.
@@ -124,9 +166,10 @@ app.post('/api/recognize', async (req, res) => {
       ? image
       : `data:${mediaType};base64,${image}`;
 
-    const completion = await getClient().chat.completions.create({
+    const completionParams: ChatCompletionParams = {
       model: LLM_MODEL,
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
+      ...(isMiniMaxM3 ? { thinking: { type: 'disabled' } as const } : {}),
       temperature: 0,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -141,7 +184,10 @@ app.post('/api/recognize', async (req, res) => {
           ]
         }
       ]
-    });
+    };
+
+    const completion =
+      await getClient().chat.completions.create(completionParams);
 
     const raw = contentToText(completion.choices?.[0]?.message?.content);
     if (!raw.trim()) {
@@ -153,6 +199,7 @@ app.post('/api/recognize', async (req, res) => {
       const parsed = extractJson(raw);
       res.json(parsed);
     } catch {
+      console.warn('[recognize] non-json model output:', raw.slice(0, 500));
       res
         .status(502)
         .json({ error: 'The model did not return valid JSON.', raw });
@@ -179,8 +226,12 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`mahjong-calc server listening on http://0.0.0.0:${port}`);
   console.log(`  serving static files from ${distDir}`);
-  console.log(`  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`);
+  console.log(
+    `  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`
+  );
   if (!LLM_API_KEY) {
-    console.warn('  WARNING: LLM_API_KEY is not set — /api/recognize will fail.');
+    console.warn(
+      '  WARNING: LLM_API_KEY is not set — /api/recognize will fail.'
+    );
   }
 });
