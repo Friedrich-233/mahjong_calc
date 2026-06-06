@@ -35,7 +35,7 @@ const port = Number(PORT) || 5173;
 const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
 const detectorPython = DETECTOR_PYTHON || 'python3';
 const detectorScript = path.join(__dirname, 'detector.py');
-const recognitionMode = (RECOGNITION_MODE || 'detector').toLowerCase();
+const recognitionMode = (RECOGNITION_MODE || 'hf').toLowerCase();
 
 const SYSTEM_PROMPT = `You are an expert Japanese riichi mahjong tile recognizer. You are given ONE photo of a player's winning hand; called melds may be laid to the side and are often rotated. Identify every tile.
 

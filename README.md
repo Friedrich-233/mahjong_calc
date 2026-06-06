@@ -38,7 +38,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 # 📸 Photo recognition & self-hosting (fork additions)
 
 This fork adds a **"Photo" button** to the tile input. Take or upload a photo of a
-winning hand and a local `mahjong-detector` model fills in the detected tiles.
+winning hand and a local hybrid detector/classifier fills in the detected tiles.
 You then set riichi / winds / dora /
 ron-tsumo with the **existing** controls and the original calculator does the
 scoring. The original calculator is untouched — recognition only fills tiles.
@@ -48,11 +48,11 @@ scoring. The original calculator is untouched — recognition only fills tiles.
 - The frontend is the original app plus one dialog (`src/recognition/`).
 - A tiny **Express backend** (`server/index.ts`):
   1. `POST /api/recognize` — receives a (browser-downscaled) photo, runs the
-     Python `mahjong-detector` ONNX model, and returns the recognized hand as JSON.
+     Python detector/classifier pipeline, and returns the recognized hand as JSON.
   2. Serves the built frontend (`dist/`) with an SPA fallback.
 - Frontend and backend are **same-origin** (one port, one container) → no CORS.
-- Default mode is local detector recognition, so no API key is required. Optional
-  LLM mode is still present for experiments, and its key stays server-side.
+- Default mode is local `hf` recognition, so no API key is required. Optional LLM
+  mode is still present for experiments, and its key stays server-side.
 
 ## Recognition mode
 
@@ -60,17 +60,25 @@ Default mode:
 
 | Variable             | Meaning                           | Default    |
 | -------------------- | --------------------------------- | ---------- |
-| `RECOGNITION_MODE`   | `detector` or `llm`               | `detector` |
+| `RECOGNITION_MODE`   | `hf`, `detector`, or `llm`        | `hf`       |
 | `APP_PORT`           | Host port published by compose    | `5173`     |
 | `PORT`               | Port the server listens on inside | `5173`     |
 | `DETECTOR_PYTHON`    | Python executable for detector    | `python3`  |
+| `DETECTOR_HF_MODEL`  | HF tile classifier model          | `krmin/mahjong_vision` |
+| `DETECTOR_HF_SUBFOLDER` | HF model subfolder             | `vision_transformer_local` |
 
-Detector mode uses the Python package
-[`mahjong-detector`](https://pypi.org/project/mahjong-detector/) (Pillow +
-NumPy + ONNX Runtime). It detects tile classes left-to-right. It does **not**
-currently infer called meld groups, called-from direction, red fives, or which
-tile was separated as the winning tile; the server uses the last detected tile
-as `winning_tile`, and you can adjust the result with the normal controls.
+Default `hf` mode uses [`mahjong-detector`](https://pypi.org/project/mahjong-detector/)
+for tile bounding boxes, then classifies each tile crop with
+[`krmin/mahjong_vision`](https://huggingface.co/krmin/mahjong_vision), a ViT
+model trained from [`pjura/mahjong_souls_tiles`](https://huggingface.co/datasets/pjura/mahjong_souls_tiles).
+That dataset/model is based on Mahjong Soul tile images, so it may still differ
+from real physical tiles. It does **not** currently infer called meld groups,
+called-from direction, red fives, or which tile was separated as the winning
+tile; the server uses the last detected tile as `winning_tile`, and you can
+adjust the result with the normal controls.
+
+Set `RECOGNITION_MODE=detector` to use the older `mahjong-detector` classifier
+directly without the Hugging Face ViT second stage.
 
 Optional LLM mode:
 
@@ -101,7 +109,7 @@ Prerequisites: Node 22+, Rust + `wasm-pack` (the decomposer is compiled from Rus
 # one-time: build the wasm package, then install deps
 npm run build:wasm
 npm install
-python3 -m pip install mahjong-detector
+python3 -m pip install -r server/requirements.txt
 
 # terminal 1 — backend on http://localhost:8787
 npm run server:dev
@@ -110,14 +118,15 @@ npm run server:dev
 npm run dev
 ```
 
-Open http://localhost:5173. In detector mode photo recognition needs no API key.
+Open http://localhost:5173. In `hf` / `detector` mode photo recognition needs no
+API key.
 
 ## Production — Docker Compose
 
 One container builds the frontend and serves it + `/api` on a single port.
 
 ```sh
-cp .env.example .env      # detector mode works as-is; edit APP_PORT if needed
+cp .env.example .env      # hf mode works as-is; edit APP_PORT if needed
 docker compose up -d --build
 ```
 
@@ -133,12 +142,12 @@ Silicon and on a Raspberry Pi (arm64).
 3. Name it `mahjong`, choose **Repository**, and point it at your repo URL, the
    branch, and the compose path `docker-compose.yml`.
 4. Under **Environment variables**, add:
-   - `RECOGNITION_MODE=detector`
+   - `RECOGNITION_MODE=hf`
    - optionally `APP_PORT` — the host port (default `5173`)
 5. **Deploy the stack.** Portainer clones the repo and runs the multi-stage build
    on the Pi. The first build takes a few minutes (it compiles the Rust→wasm
-   package and installs the ONNX detector runtime). When it's up, the app is at
-   `http://<pi-ip>:5173`.
+   package and installs the ONNX detector plus the HF/Torch classifier runtime).
+   When it's up, the app is at `http://<pi-ip>:5173`.
 6. Point Cloudflare / your DNS at the Pi. The service only needs port 5173 — no
    reverse-proxy or TLS config is required on this side.
 
@@ -149,7 +158,7 @@ the active recognition mode.
 
 ## What recognition fills (and what it doesn't)
 
-- **Detector mode fills:** detected tiles left-to-right, with the last detected
+- **HF/detector mode fills:** detected tiles left-to-right, with the last detected
   tile used as the winning tile.
 - **You set manually (unchanged):** riichi / ippatsu / etc., round & seat wind,
   dora indicators, ron vs tsumo, called meld grouping, red fives, and the rule set.

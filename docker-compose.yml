@@ -8,7 +8,11 @@ services:
       - '${APP_PORT:-5173}:5173'
     environment:
       - PORT=5173
-      - RECOGNITION_MODE=${RECOGNITION_MODE:-detector}
+      - RECOGNITION_MODE=${RECOGNITION_MODE:-hf}
+      - DETECTOR_CLASSIFIER=${DETECTOR_CLASSIFIER:-hf}
+      - DETECTOR_HF_MODEL=${DETECTOR_HF_MODEL:-krmin/mahjong_vision}
+      - DETECTOR_HF_SUBFOLDER=${DETECTOR_HF_SUBFOLDER:-vision_transformer_local}
+      - TORCH_NUM_THREADS=${TORCH_NUM_THREADS:-2}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-}
