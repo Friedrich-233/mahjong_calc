@@ -1,0 +1,14 @@
+{
+  "name": "mahjong-calc-server",
+  "private": true,
+  "type": "module",
+  "description": "Minimal backend: serves the built frontend and proxies image recognition to a vision LLM.",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "openai": "^6.42.0",
+    "tsx": "^4.22.4"
+  }
+}

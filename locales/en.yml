@@ -1,0 +1,267 @@
+locale:
+  name: English
+translation:
+  recognition:
+    button: Photo
+    title: Recognize Hand from Photo
+    instructions: Take or upload a photo of your winning hand. The tiles, melds, and winning tile are filled in automatically. Set riichi, winds, dora, and ron/tsumo manually afterwards.
+    choose: Take / Choose Photo
+    recognizing: Recognizing tiles…
+    preview: Recognized hand — please check it before applying.
+    review-hint: Something off? Apply it anyway and fix with the usual controls, or try another photo.
+    apply: Apply to Hand
+    again: Try Another
+    retry: Try Again
+    failed: Recognition failed. You can still input the hand manually.
+    close: Close
+  header:
+    title: Mahjong Score Calculator
+    update: Update
+    help: Help
+    scoring-table: Scoring Table
+    settings: Settings
+  table-settings:
+    round-wind: Round Wind
+    seat-wind: Seat Wind
+    east: East
+    south: South
+    west: West
+    north: North
+    deposit: Riichi Bets
+    continue: Honba
+  tile-input:
+    dora-indicators: Dora Indicators
+    hand: Hand
+    clear-inputs: Clear Inputs
+    random: "Random {{count}} Tiles"
+    random-chinitsu: Random Full Flush
+    copy-hand-as-mpsz: Copy Hand as MPSZ Format
+    keyboard-shortcuts: Keyboard Shortcuts...
+    pon: Pon
+    chii: Chii
+    minkan: Open Kan
+    ankan: Closed Kan
+    toggle-red: Toggle Red
+  keyboard-shortcuts:
+    title: Keyboard Shortcuts
+    switch-focus: Switch Focus
+    delete-tile: Delete Tile
+    pon: Pon
+    chii: Chii
+    minkan: Open Kan
+    ankan: Closed Kan
+    toggle-red: Toggle Red
+    close: Close
+  hand-options:
+    none: None
+    riichi: Riichi
+    double-riichi: Double Riichi
+    ippatsu: Ippatsu
+    rinshan: After a Kan
+    chankan: Robbing a Kan
+    haitei-hotei: Under the Sea/Under the River
+    tenho: Blessing of Heaven
+    chiho: Blessing of Earth
+  input-glance:
+    round-east: East Round
+    round-south: South Round
+    round-west: West Round
+    round-north: North Round
+    seat-east: East Seat
+    seat-south: South Seat
+    seat-west: West Seat
+    seat-north: North Seat
+  result:
+    input-message: Please input your hand tiles.
+    hora: Win. Input more hand tiles to calculate the score.
+    no-hora-tiles: No Hora tile
+    tsumo: Tsumo
+    ron: Ron
+    no-yaku: No Yaku
+    points: Points
+    mangan: Mangan
+    haneman: Haneman
+    baiman: Baiman
+    sambaiman: Sambaiman
+    yakuman: Yakuman
+    double-yakuman: Double Yakuman
+    triple-yakuman: Triple Yakuman
+    quadruple-yakuman: Quadruple Yakuman
+    quintuple-yakuman: Quintuple Yakuman
+    sextuple-yakuman: Sextuple Yakuman
+    septuple-yakuman: Septuple Yakuman
+    octuple-yakuman: Octuple Yakuman
+    nonuple-yakuman: Nonuple Yakuman
+    decuple-yakuman: Decuple Yakuman
+    more-yakuman: More Yakuman
+    ron-detail: "{{a}} - {{b}}"
+    tsumo-east-detail: "{{count}} All"
+    tsumo-east-continue-detail: "{{a}} - {{b}} All"
+    tsumo-other-detail: "{{a}}/{{b}}"
+    tsumo-other-continue-detail: "{{a}}/{{b}} - {{c}}/{{d}}"
+    han: "{{count}} Han"
+    fu-han: "{{a}} Fu {{b}} Han"
+    score: Score
+    base-point: Base Points
+    fu-var: Fu
+    han-var: Han
+    dealer-pays: Dealer Pays
+    non-dealer-pay: Non-dealer Pay
+    change-in-score: Change in score
+    plus-han: "+{{count}} Han"
+    plus-han-2: "+{{a}}, +{{b}} Han"
+    plus-han-range: "+{{a}} - +{{b}} Han"
+    plus-gte-han: "+ ≥ {{count}} Han"
+    point-diff: Point Difference
+    point: "{{count}} Points"
+    dealer-diff: "Point difference from the Dealer: {{count}}"
+    non-dealer-diff: "Point difference from Non-dealers: {{count}}"
+    shanten: "{{count}} to Tempai"
+    type_one: "{{count}} Type"
+    type_other: "{{count}} Types"
+    tile_one: "{{count}} Tile"
+    tile_other: "{{count}} Tiles"
+    tempai: Tempai
+    discard: Discard
+    waiting: Waiting
+    acceptance: Acceptance
+    point-range: "{{a}} - {{b}} Points"
+  fu:
+    title: Fu
+    fu: "{{count}} Fu"
+    futei: Base Fu
+    head: Head
+    double-wind-head: Double Wind Head
+    round-wind-head: Round Wind Head
+    seat-wind-head: Seat Wind Head
+    dragon-head: Dragon Head
+    shuntsu: Sequence
+    chunchan-minko: Open Triplet of Simples
+    chunchan-anko: Closed Triplet of Simples
+    chunchan-minkan: Open Kan of Simples
+    chunchan-ankan: Closed Kan of Simples
+    yaochu-minko: Open Triplet of Terminals
+    yaochu-anko: Closed Triplet of Terminals
+    yaochu-minkan: Open Kan of Terminals
+    yaochu-ankan: Closed Kan of Terminals
+    ryammen: Double Sided Wait
+    kanchan: Middle Wait
+    penchan: End Wait
+    shampon: Double Pair Wait
+    tanki: Single Wait
+    menzen-ron: Menzenchin Ron
+    kui-pinfu: Pinfu Ron with an Open Hand
+    tsumo: Tsumo
+    pinfu-tsumo: Pinfu Tsumo
+    chitoitsu: 7 Pairs
+  yaku:
+    yaku: Yaku
+    riichi: Riichi
+    ippatsu: Ippatsu
+    tsumo: Menzenchin Tsumo
+    tanyao: Tanyao
+    pinfu: Pinfu
+    iipeko: Pure Double Sequence
+    field-wind: Round Wind
+    seat-wind: Seat Wind
+    white: Dragon White
+    green: Dragon Green
+    red: Dragon Red
+    rinshan: After a Kan
+    chankan: Robbing a Kan
+    haitei: Under the Sea
+    hotei: Under the River
+    sanshoku-dojun: Mixed Triple Sequence
+    sanshoku-doko: Triple Triplets
+    ittsu: Pure Straight
+    chanta: Half Outside Hand
+    chitoitsu: 7 Pairs
+    toitoi: All Triplets
+    sananko: 3 Concealed Triplets
+    honroto: All Terminals & Honors
+    sankantsu: 3 Quads
+    shosangen: Little 3 Dragons
+    double-riichi: Double Riichi
+    honitsu: Half Flush
+    junchan: Fully Outside Hand
+    ryampeko: Twice Pure Double Sequence
+    chinitsu: Full Flush
+    dora: Dora
+    red-dora: Red Dora
+    kokushi: 13 Orphans
+    kokushi-13: 13-wait 13 Orphans
+    suanko: 4 Concealed Triplets
+    suanko-tanki: Single-wait 4 Concealed Triplets
+    daisangen: Big 3 Dragons
+    tsuiso: All Honors
+    shosushi: 4 Little Winds
+    daisushi: 4 Big Winds
+    ryuiso: All Green
+    chinroto: All Terminals
+    sukantsu: 4 Quads
+    churen: 9 Gates
+    pure-churen: True 9 Gates
+    tenho: Blessing of Heaven
+    chiho: Blessing of Earth
+    bazoro: Bazoro
+  scoring-table:
+    dealer: Dealer
+    non-dealer: Non-dealer
+    score: Score
+    diff: Difference
+    fu: "{{count}} Fu"
+    han: "{{count}} Han"
+    han-2: "{{a}}, {{b}} Han"
+    han-range: "{{a}} - {{b}} Han"
+    gte-han: "≥ {{count}} Han"
+    gte-han-yakuman: "≥ {{count}} Han, Yakuman"
+    yakuman: Yakuman
+    pinfu-tsumo: Pinfu Tsumo
+    chitoitsu: 7 Pairs
+    ron-with-bonus: "{{a}} - {{b}}"
+    tsumo-with-bonus-dealer: "{{a}} - {{b}} All"
+    tsumo-with-bonus-non-dealer: "{{a}}/{{b}} - {{c}}/{{d}}"
+    tsumo-dealer: "{{count}} All"
+    tsumo-non-dealer: "{{a}}/{{b}}"
+    tsumo-non-dealer-diff: "{{a}}/{{b}}"
+  settings:
+    rule: Rule
+    empty: Empty
+    save-as: Save as
+    overwrite-save: Overwrite save
+    name: Name
+    untitled-rule: Untitled Rule
+    on: On
+    off: Off
+    red-m: Red 5m
+    red-p: Red 5p
+    red-s: Red 5s
+    honba-bonus: Honba Bonus
+    point: "{{count}} Points"
+    rounded-mangan: Rounded Mangan
+    round-up-basic-point: "Base Points: {{count}}"
+    double-wind-fu: Double Wind Fu
+    fu: "{{count}} Fu"
+    accumlated-yakuman: Accumulated Yakuman
+    gte-han: "≥ {{count}} Han"
+    multiple-yakuman: Multiple Yakuman
+    kokushi-13: 13-wait 13 Orphans
+    suanko-tanki: Single-wait 4 Concealed Triplets
+    daisushi: 4 Big Winds
+    pure-churen: True 9 Gates
+    yakuman: Yakuman
+    double-yakuman: Double Yakuman
+    appearance: Appearance
+    language: Language
+    theme: Theme
+    auto: Auto
+    light: Light
+    dark: Dark
+    tile-color: Tile Color
+    auto-inverted: Auto (Inverted)
+    score: Score
+    show-bazoro: Show Bazoro
+    about: About
+  footer:
+    license: This app is licensed under <1>The MIT License</1>. We assume no liability for this app.
+    credit: The mahjong tile images are from <1>FluffyStuff/riichi-mahjong-tiles</1> (<2>CC BY</2>).

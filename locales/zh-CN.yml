@@ -1,0 +1,265 @@
+locale:
+  name: 简体中文
+translation:
+  recognition:
+    button: 拍照
+    title: 拍照识别手牌
+    instructions: 拍摄或上传一张和牌照片,会自动填入手牌、副露和和了牌。立直、场风、自风、dora、荣/自摸请之后手动设置。
+    choose: 拍照 / 选择照片
+    recognizing: 正在识别牌…
+    preview: 识别结果,应用前请先核对。
+    review-hint: 识别有误?可以先应用,再用原有控件修改,或换一张照片重试。
+    apply: 应用到手牌
+    again: 换一张
+    retry: 重试
+    failed: 识别失败,你仍可手动输入。
+    close: 关闭
+  header:
+    title: 麻雀得点計算機
+    update: 更新
+    help: 帮助
+    scoring-table: 得分速查表
+    settings: 设置
+  table-settings:
+    round-wind: 场风
+    seat-wind: 自风
+    east: 東
+    south: 南
+    west: 西
+    north: 北
+    deposit: 立直棒
+    continue: 场棒
+  tile-input:
+    dora-indicators: 宝牌指示牌
+    hand: 手牌
+    clear-inputs: 清除输入
+    random: "随机 {{count}} 牌"
+    random-chinitsu: 随机 清一色
+    copy-hand-as-mpsz: 以 MPSZ 格式复制手牌
+    keyboard-shortcuts: 键盘快捷键...
+    pon: 碰
+    chii: 吃
+    minkan: 明杠
+    ankan: 暗杠
+    toggle-red: 切换赤牌
+  keyboard-shortcuts:
+    title: 键盘快捷键
+    switch-focus: 切换焦点
+    delete-tile: 抹去牌
+    pon: 碰
+    chii: 吃
+    minkan: 明杠
+    ankan: 暗杠
+    toggle-red: 切换赤牌
+    close: 关
+  hand-options:
+    none: 无
+    riichi: 立直
+    double-riichi: W立直
+    ippatsu: 一发
+    rinshan: 岭上开花
+    chankan: 抢杠
+    haitei-hotei: 海底 / 河底
+    tenho: 天和
+    chiho: 地和
+  input-glance:
+    round-east: 東場
+    round-south: 南場
+    round-west: 西場
+    round-north: 北場
+    seat-east: 東家
+    seat-south: 南家
+    seat-west: 西家
+    seat-north: 北家
+  result:
+    input-message: 请输入手牌。
+    hora: 和了。输入所有的牌并计算分数。
+    no-hora-tiles: 缺少和了牌
+    tsumo: 自摸
+    ron: 荣和
+    no-yaku: 无役
+    points: 点
+    mangan: 满贯
+    haneman: 跳满
+    baiman: 倍满
+    sambaiman: 三倍满
+    yakuman: 役满
+    double-yakuman: 双倍役满
+    triple-yakuman: 三倍役满
+    quadruple-yakuman: 四倍役满
+    quintuple-yakuman: 五倍役满
+    sextuple-yakuman: 六倍役满
+    septuple-yakuman: 七倍役满
+    octuple-yakuman: 八倍役满
+    nonuple-yakuman: 九倍役满
+    decuple-yakuman: 十倍役满
+    more-yakuman: 多重役满
+    ron-detail: "{{a}} - {{b}}"
+    tsumo-east-detail: "{{count}} All"
+    tsumo-east-continue-detail: "{{a}} - {{b}} All"
+    tsumo-other-detail: "{{a}} · {{b}}"
+    tsumo-other-continue-detail: "{{a}} · {{b}} - {{c}} · {{d}}"
+    han: "{{count}} 番"
+    fu-han: "{{a}} 符 {{b}} 番"
+    score: 分数
+    base-point: 基本点
+    fu-var: 符
+    han-var: 番
+    dealer-pays: 庄家（亲）支付
+    non-dealer-pay: 闲家（子）支付
+    change-in-score: 分数变化
+    plus-han: "+{{count}} 番"
+    plus-han-2: "+{{a}} · +{{b}} 番"
+    plus-han-range: "+{{a}} - +{{b}} 番"
+    plus-gte-han: "+{{count}} 番以上"
+    point-diff: 点差
+    point: "{{count}} 点"
+    dealer-diff: "庄家（亲）点差: {{count}} 点"
+    non-dealer-diff: "闲家（子）点差: {{count}} 点"
+    shanten: "{{count}} 向听"
+    type: "{{count}} 种"
+    tile: "{{count}} 牌"
+    tempai: 听牌
+    discard: 打
+    waiting: 听
+    acceptance: 接受
+    point-range: "{{a}} - {{b}} 点"
+  fu:
+    title: 符
+    fu: "{{count}} 符"
+    futei: 底符
+    head: 雀头
+    double-wind-head: 连风牌雀头
+    round-wind-head: 场风牌雀头
+    seat-wind-head: 自风牌雀头
+    dragon-head: 三元牌雀头
+    shuntsu: 顺子
+    chunchan-minko: 中张牌明刻
+    chunchan-anko: 中张牌暗刻
+    chunchan-minkan: 中张牌明杠
+    chunchan-ankan: 中张牌暗杠
+    yaochu-minko: 幺九牌明刻
+    yaochu-anko: 幺九牌暗刻
+    yaochu-minkan: 幺九牌明杠
+    yaochu-ankan: 幺九牌暗杠
+    ryammen: 听两面
+    kanchan: 听嵌张
+    penchan: 听边张
+    shampon: 听双碰
+    tanki: 听单骑
+    menzen-ron: 门前清荣和
+    kui-pinfu: 有副露的平和形荣和
+    tsumo: 自摸
+    pinfu-tsumo: 平和自摸
+    chitoitsu: 七对子
+  yaku:
+    yaku: 役
+    riichi: 立直
+    ippatsu: 一发
+    tsumo: 门前清自摸和
+    tanyao: 断么九
+    pinfu: 平和
+    iipeko: 一杯口
+    field-wind: 场风牌
+    seat-wind: 自风牌
+    white: 白
+    green: 發
+    red: 中
+    rinshan: 岭上开花
+    chankan: 抢杠
+    haitei: 海底摸月
+    hotei: 河底捞鱼
+    sanshoku-dojun: 三色同顺
+    sanshoku-doko: 三色同刻
+    ittsu: 一气通贯
+    chanta: 混全带幺九
+    chitoitsu: 七对子
+    toitoi: 对对和
+    sananko: 三暗刻
+    honroto: 混老头
+    sankantsu: 三杠子
+    shosangen: 小三元
+    double-riichi: W立直
+    honitsu: 混一色
+    junchan: 纯全带幺九
+    ryampeko: 二杯口
+    chinitsu: 清一色
+    dora: 宝牌
+    red-dora: 赤牌
+    kokushi: 国士无双
+    kokushi-13: 国士无双十三面
+    suanko: 四暗刻
+    suanko-tanki: 四暗刻单骑
+    daisangen: 大三元
+    tsuiso: 字一色
+    shosushi: 小四喜
+    daisushi: 大四喜
+    ryuiso: 绿一色
+    chinroto: 清老头
+    sukantsu: 四杠子
+    churen: 九莲宝灯
+    pure-churen: 纯正九莲宝灯
+    tenho: 天和
+    chiho: 地和
+    bazoro: 場ゾロ
+  scoring-table:
+    dealer: 庄家（亲）
+    non-dealer: 闲家（子）
+    score: 得分
+    diff: 分差
+    fu: "{{count}} 符"
+    han: "{{count}} 番"
+    han-2: "{{a}} · {{b}} 番"
+    han-range: "{{a}} - {{b}} 番"
+    gte-han: "{{count}} 番以上"
+    gte-han-yakuman: "{{count}} 番以上 · 役满"
+    yakuman: 役满
+    pinfu-tsumo: 平和自摸
+    chitoitsu: 七对子
+    ron-with-bonus: "{{a}} - {{b}}"
+    tsumo-with-bonus-dealer: "{{a}} - {{b}} All"
+    tsumo-with-bonus-non-dealer: "{{a}} · {{b}} - {{c}} · {{d}}"
+    tsumo-dealer: "{{count}} All"
+    tsumo-non-dealer: "{{a}} · {{b}}"
+    tsumo-non-dealer-diff: "{{a}} / {{b}}"
+  settings:
+    rule: 规则
+    empty: 空的
+    save-as: 另存为
+    overwrite-save: 覆盖保存
+    name: 名
+    untitled-rule: 无标题规则
+    on: 开启
+    off: 关闭
+    red-m: 赤五萬
+    red-p: 赤五筒
+    red-s: 赤五索
+    honba-bonus: 1 本場
+    point: "{{count}} 点"
+    rounded-mangan: 切上满贯
+    round-up-basic-point: "基本点 {{count}} 点"
+    double-wind-fu: 连风牌雀头
+    fu: "{{count}} 符"
+    accumlated-yakuman: 累计役满
+    gte-han: "{{count}} 番以上"
+    multiple-yakuman: 复合役满
+    kokushi-13: 国士无双十三面
+    suanko-tanki: 四暗刻单骑
+    daisushi: 大四喜
+    pure-churen: 纯正九莲宝灯
+    yakuman: 役满
+    double-yakuman: 双倍役满
+    appearance: 外观
+    language: 语言
+    theme: 主题
+    auto: 自动
+    light: 明亮
+    dark: 黑暗
+    tile-color: 麻将牌颜色
+    auto-inverted: 自动 (反向)
+    score: 分数
+    show-bazoro: 顯示場ゾロ
+    about: 关于
+  footer:
+    license: 这个 APP 使用了 <1>The MIT License</1>。由这个 APP 引起的纠纷和造成的一切后果，其责任与本作者无关。
+    credit: 麻将牌的图像属于 <1>FluffyStuff/riichi-mahjong-tiles</1> (<2>CC BY</2>) 。

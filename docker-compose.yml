@@ -1,0 +1,14 @@
+services:
+  mahjong:
+    build: .
+    image: mahjong-calc
+    container_name: mahjong-calc
+    ports:
+      # host port : container port. Change APP_PORT in .env to avoid conflicts.
+      - '${APP_PORT:-5173}:5173'
+    environment:
+      - PORT=5173
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+    restart: unless-stopped

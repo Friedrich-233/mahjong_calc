@@ -1,0 +1,265 @@
+locale:
+  name: 日本語
+translation:
+  recognition:
+    button: 写真
+    title: 写真から手牌を認識
+    instructions: 和了手牌の写真を撮影またはアップロードしてください。牌・鳴き・和了牌は自動で入力されます。立直・場風・自風・ドラ・ロン/ツモは後で手動で設定してください。
+    choose: 写真を撮影 / 選択
+    recognizing: 牌を認識中…
+    preview: 認識結果です。適用する前に確認してください。
+    review-hint: 間違いがあっても、適用してから通常の操作で修正するか、別の写真をお試しください。
+    apply: 手牌に反映
+    again: 別の写真
+    retry: 再試行
+    failed: 認識に失敗しました。手動で入力することもできます。
+    close: 閉じる
+  header:
+    title: 麻雀得点計算機
+    update: アップデート
+    help: ヘルプ
+    scoring-table: 得点早見表
+    settings: 設定
+  table-settings:
+    round-wind: 場風
+    seat-wind: 自風
+    east: 東
+    south: 南
+    west: 西
+    north: 北
+    deposit: 供託
+    continue: 積棒
+  tile-input:
+    dora-indicators: ドラ表示牌
+    hand: 手牌
+    clear-inputs: 入力を消去
+    random: "ランダム {{count}} 枚"
+    random-chinitsu: ランダム 清一色
+    copy-hand-as-mpsz: 手牌を MPSZ 形式でコピー
+    keyboard-shortcuts: キーボードショートカット...
+    pon: ポン
+    chii: チー
+    minkan: 明槓
+    ankan: 暗槓
+    toggle-red: 赤牌切替
+  keyboard-shortcuts:
+    title: キーボードショートカット
+    switch-focus: フォーカスの切り替え
+    delete-tile: 牌を消去
+    pon: ポン
+    chii: チー
+    minkan: 明槓
+    ankan: 暗槓
+    toggle-red: 赤牌切替
+    close: 閉じる
+  hand-options:
+    none: なし
+    riichi: 立直
+    double-riichi: ダブル立直
+    ippatsu: 一発
+    rinshan: 嶺上開花
+    chankan: 搶槓
+    haitei-hotei: 海底 / 河底
+    tenho: 天和
+    chiho: 地和
+  input-glance:
+    round-east: 東場
+    round-south: 南場
+    round-west: 西場
+    round-north: 北場
+    seat-east: 東家
+    seat-south: 南家
+    seat-west: 西家
+    seat-north: 北家
+  result:
+    input-message: 牌を入力してください。
+    hora: 和了です。牌をすべて入力して点数を計算します。
+    no-hora-tiles: 和了牌無し
+    tsumo: ツモ
+    ron: ロン
+    no-yaku: 役無し
+    points: 点
+    mangan: 満貫
+    haneman: 跳満
+    baiman: 倍満
+    sambaiman: 三倍満
+    yakuman: 役満
+    double-yakuman: ダブル役満
+    triple-yakuman: トリプル役満
+    quadruple-yakuman: クアドラプル役満
+    quintuple-yakuman: クインタプル役満
+    sextuple-yakuman: セクスタプル役満
+    septuple-yakuman: セプタプル役満
+    octuple-yakuman: オクタプル役満
+    nonuple-yakuman: ノナプル役満
+    decuple-yakuman: デカプル役満
+    more-yakuman: 重ね役満
+    ron-detail: "{{a}} は {{b}}"
+    tsumo-east-detail: "{{count}} オール"
+    tsumo-east-continue-detail: "{{a}} は {{b}} オール"
+    tsumo-other-detail: "{{a}} · {{b}}"
+    tsumo-other-continue-detail: "{{a}} · {{b}} は {{c}} · {{d}}"
+    han: "{{count}} 飜"
+    fu-han: "{{a}} 符 {{b}} 飜"
+    score: 点数
+    base-point: 基本点
+    fu-var: 符
+    han-var: 飜
+    dealer-pays: 親の支払い
+    non-dealer-pay: 子の支払い
+    change-in-score: 点数の変化
+    plus-han: "+{{count}} 飜"
+    plus-han-2: "+{{a}} · +{{b}} 飜"
+    plus-han-range: "+{{a}} ~ +{{b}} 飜"
+    plus-gte-han: "+{{count}} 飜以上"
+    point-diff: 点差
+    point: "{{count}} 点"
+    dealer-diff: "親との点差: {{count}} 点"
+    non-dealer-diff: "子との点差: {{count}} 点"
+    shanten: "{{count}} 向聴"
+    type: "{{count}} 種"
+    tile: "{{count}} 枚"
+    tempai: 聴牌
+    discard: 打
+    waiting: 待ち
+    acceptance: 受け入れ
+    point-range: "{{a}} ~ {{b}} 点"
+  fu:
+    title: 符
+    fu: "{{count}} 符"
+    futei: 副底
+    head: 雀頭
+    double-wind-head: 連風牌雀頭
+    round-wind-head: 場風牌雀頭
+    seat-wind-head: 自風牌雀頭
+    dragon-head: 三元牌雀頭
+    shuntsu: 順子
+    chunchan-minko: 中張牌明刻
+    chunchan-anko: 中張牌暗刻
+    chunchan-minkan: 中張牌明槓
+    chunchan-ankan: 中張牌暗槓
+    yaochu-minko: 么九牌明刻
+    yaochu-anko: 么九牌暗刻
+    yaochu-minkan: 么九牌明槓
+    yaochu-ankan: 么九牌暗槓
+    ryammen: 両面待ち
+    kanchan: 嵌張待ち
+    penchan: 辺張待ち
+    shampon: 双碰待ち
+    tanki: 単騎待ち
+    menzen-ron: 門前ロン
+    kui-pinfu: 食い平和ロン
+    tsumo: ツモ
+    pinfu-tsumo: 平和ツモ
+    chitoitsu: 七対子
+  yaku:
+    yaku: 役
+    riichi: 立直
+    ippatsu: 一発
+    tsumo: 門前清自摸和
+    tanyao: 断么九
+    pinfu: 平和
+    iipeko: 一盃口
+    field-wind: 場風牌
+    seat-wind: 自風牌
+    white: 白
+    green: 發
+    red: 中
+    rinshan: 嶺上開花
+    chankan: 搶槓
+    haitei: 海底摸月
+    hotei: 河底撈魚
+    sanshoku-dojun: 三色同順
+    sanshoku-doko: 三色同刻
+    ittsu: 一気通貫
+    chanta: 混全帯么九
+    chitoitsu: 七対子
+    toitoi: 対々和
+    sananko: 三暗刻
+    honroto: 混老頭
+    sankantsu: 三槓子
+    shosangen: 小三元
+    double-riichi: ダブル立直
+    honitsu: 混一色
+    junchan: 純全帯么九
+    ryampeko: 二盃口
+    chinitsu: 清一色
+    dora: ドラ
+    red-dora: 赤ドラ
+    kokushi: 国士無双
+    kokushi-13: 国士無双十三面待ち
+    suanko: 四暗刻
+    suanko-tanki: 四暗刻単騎待ち
+    daisangen: 大三元
+    tsuiso: 字一色
+    shosushi: 小四喜
+    daisushi: 大四喜
+    ryuiso: 緑一色
+    chinroto: 清老頭
+    sukantsu: 四槓子
+    churen: 九蓮宝燈
+    pure-churen: 純正九蓮宝燈
+    tenho: 天和
+    chiho: 地和
+    bazoro: 場ゾロ
+  scoring-table:
+    dealer: 親
+    non-dealer: 子
+    score: 得点
+    diff: 点差
+    fu: "{{count}} 符"
+    han: "{{count}} 飜"
+    han-2: "{{a}} · {{b}} 飜"
+    han-range: "{{a}} ~ {{b}} 飜"
+    gte-han: "{{count}} 飜以上"
+    gte-han-yakuman: "{{count}} 飜以上 · 役満"
+    yakuman: 役満
+    pinfu-tsumo: 平和ツモ
+    chitoitsu: 七対子
+    ron-with-bonus: "{{a}} は {{b}}"
+    tsumo-with-bonus-dealer: "{{a}} は {{b}} オール"
+    tsumo-with-bonus-non-dealer: "{{a}} · {{b}} は {{c}} · {{d}}"
+    tsumo-dealer: "{{count}} オール"
+    tsumo-non-dealer: "{{a}} · {{b}}"
+    tsumo-non-dealer-diff: "{{a}} / {{b}}"
+  settings:
+    rule: ルール
+    empty: 空
+    save-as: 名前を付けて保存
+    overwrite-save: 上書き保存
+    name: 名前
+    untitled-rule: 無題のルール
+    on: オン
+    off: オフ
+    red-m: 赤五萬
+    red-p: 赤五筒
+    red-s: 赤五索
+    honba-bonus: 1 本場
+    point: "{{count}} 点"
+    rounded-mangan: 切り上げ満貫
+    round-up-basic-point: "基本点 {{count}} 点"
+    double-wind-fu: 連風牌の雀頭
+    fu: "{{count}} 符"
+    accumlated-yakuman: 数え役満
+    gte-han: "{{count}} 飜以上"
+    multiple-yakuman: 役満の複合
+    kokushi-13: 国士無双十三面待ち
+    suanko-tanki: 四暗刻単騎待ち
+    daisushi: 大四喜
+    pure-churen: 純正九蓮宝燈
+    yakuman: 役満
+    double-yakuman: ダブル役満
+    appearance: 表示
+    language: 言語
+    theme: テーマ
+    auto: 自動
+    light: ライト
+    dark: ダーク
+    tile-color: 牌の色
+    auto-inverted: 自動 (反転)
+    score: 点数
+    show-bazoro: 場ゾロを表示
+    about: 情報
+  footer:
+    license: この Web アプリケーションは <1>The MIT License</1> の下でライセンスされています。本アプリケーションの作者は、本アプリケーションに関しての責任を負わないものとします。
+    credit: 麻雀牌の画像は <1>FluffyStuff/riichi-mahjong-tiles</1> のものを使用しています (<2>CC BY</2>) 。

@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+dist
+coverage
+.git
+.github
+.husky
+.vscode
+.devcontainer
+*.log
+**/*.log
+wasm/decomposer/pkg
+wasm/decomposer/target
+.DS_Store
+.env

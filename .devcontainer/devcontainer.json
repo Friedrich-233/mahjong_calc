@@ -1,0 +1,20 @@
+{
+  "name": "Node.js",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "settings": {
+      "terminal.integrated.defaultProfile.linux": "bash",
+      "terminal.integrated.profiles.linux": {
+        "bash": {
+          "path": "bash"
+        }
+      }
+    },
+    "extensions": ["biomejs.biome", "EditorConfig.EditorConfig"]
+  },
+  "forwardPorts": [5173],
+  "postCreateCommand": "npm i && npm run build:wasm",
+  "remoteUser": "node"
+}

@@ -1,0 +1,67 @@
+{
+  "name": "mahjong-calc",
+  "version": "2.1.4",
+  "description": "Mahjong score calculator",
+  "type": "module",
+  "scripts": {
+    "preview": "vite preview",
+    "build": "tsc -b && vite build",
+    "build:wasm": "cd wasm/decomposer && wasm-pack build",
+    "dev": "vite",
+    "server": "tsx server/index.ts",
+    "server:dev": "PORT=8787 tsx watch server/index.ts",
+    "start": "tsx server/index.ts",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "prepare": "husky",
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "livewing.net <dev@livewing.net> (https://livewing.net/)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/livewing/mahjong-calc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/livewing/mahjong-calc/issues"
+  },
+  "private": true,
+  "dependencies": {
+    "copy-to-clipboard": "^3.3.3",
+    "decomposer": "file:./wasm/decomposer/pkg",
+    "express": "^5.2.1",
+    "i18next": "^24.2.2",
+    "i18next-browser-languagedetector": "^8.0.3",
+    "openai": "^6.42.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hotkeys-hook": "^4.6.1",
+    "react-i18next": "^15.4.1",
+    "react-icons": "^5.4.0",
+    "tsx": "^4.22.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@svgr/plugin-svgo": "^8.1.0",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/vite": "^4.0.6",
+    "@tsconfig/strictest": "^2.0.5",
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react-swc": "^3.8.0",
+    "husky": "^9.1.7",
+    "js-yaml": "^4.1.0",
+    "tailwindcss": "^4.0.6",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vite-plugin-pwa": "^0.21.1",
+    "vite-plugin-svgr": "^4.3.0",
+    "vite-plugin-wasm": "^3.4.1",
+    "vitest": "^3.0.5",
+    "workbox-sw": "^7.3.0"
+  }
+}
