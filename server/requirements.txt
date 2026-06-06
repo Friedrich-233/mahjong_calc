@@ -1,0 +1,1 @@
+mahjong-detector==0.0.6

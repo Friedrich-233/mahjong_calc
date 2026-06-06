@@ -8,6 +8,7 @@ services:
       - '${APP_PORT:-5173}:5173'
     environment:
       - PORT=5173
+      - RECOGNITION_MODE=${RECOGNITION_MODE:-detector}
       - LLM_BASE_URL=${LLM_BASE_URL:-}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_MODEL=${LLM_MODEL:-}

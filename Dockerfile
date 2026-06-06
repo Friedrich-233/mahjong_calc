@@ -36,9 +36,22 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app/server
 
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 # Install only the backend's runtime deps (express, openai, tsx).
 COPY server/package.json ./package.json
 RUN npm install --omit=dev --no-audit --no-fund
+
+# Install the detector runtime. On Raspberry Pi / arm64, piwheels provides
+# suitable wheels for the package's Python dependencies when PyPI does not.
+COPY server/requirements.txt ./requirements.txt
+RUN python3 -m venv /opt/mahjong-detector \
+ && /opt/mahjong-detector/bin/python -m pip install --no-cache-dir --upgrade pip \
+ && /opt/mahjong-detector/bin/python -m pip install --no-cache-dir \
+      --extra-index-url https://www.piwheels.org/simple \
+      -r requirements.txt
 
 # Backend source + the built frontend.
 COPY server/ ./
@@ -46,5 +59,7 @@ COPY --from=builder /app/dist /app/dist
 
 # The container always listens on 5173; publish it to a host port via compose.
 ENV PORT=5173
+ENV DETECTOR_PYTHON=/opt/mahjong-detector/bin/python
+ENV RECOGNITION_MODE=detector
 EXPOSE 5173
 CMD ["npm", "start"]

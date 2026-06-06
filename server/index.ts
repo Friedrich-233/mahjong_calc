@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -19,11 +20,22 @@ import OpenAI from 'openai';
 // The API key never reaches the browser: the frontend only ever calls /api.
 // ---------------------------------------------------------------------------
 
-const { PORT, DIST_DIR, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL } = process.env;
+const {
+  PORT,
+  DIST_DIR,
+  DETECTOR_PYTHON,
+  LLM_API_KEY,
+  LLM_BASE_URL,
+  LLM_MODEL,
+  RECOGNITION_MODE
+} = process.env;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(PORT) || 5173;
 const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
+const detectorPython = DETECTOR_PYTHON || 'python3';
+const detectorScript = path.join(__dirname, 'detector.py');
+const recognitionMode = (RECOGNITION_MODE || 'detector').toLowerCase();
 
 const SYSTEM_PROMPT = `You are an expert Japanese riichi mahjong tile recognizer. You are given ONE photo of a player's winning hand; called melds may be laid to the side and are often rotated. Identify every tile.
 
@@ -156,13 +168,60 @@ const contentToText = (content: unknown): string => {
   return '';
 };
 
+const recognizeWithDetector = (
+  image: string,
+  mediaType: string
+): Promise<unknown> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(detectorPython, [detectorScript], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    const timeout = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error('mahjong-detector timed out'));
+    }, 60_000);
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', chunk => {
+      stdout += String(chunk);
+    });
+    child.stderr.on('data', chunk => {
+      stderr += String(chunk);
+    });
+    child.on('error', err => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+    child.on('close', code => {
+      clearTimeout(timeout);
+      if (code !== 0) {
+        reject(
+          new Error(
+            stderr.trim() ||
+              `mahjong-detector exited with code ${code ?? 'unknown'}`
+          )
+        );
+        return;
+      }
+      try {
+        resolve(extractJson(stdout));
+      } catch {
+        reject(new Error(`mahjong-detector returned invalid JSON: ${stdout}`));
+      }
+    });
+    child.stdin.end(JSON.stringify({ image, media_type: mediaType }));
+  });
+
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    configured: Boolean(LLM_API_KEY),
+    mode: recognitionMode,
+    configured: recognitionMode === 'llm' ? Boolean(LLM_API_KEY) : true,
+    detector_python: detectorPython,
     model: LLM_MODEL ?? null,
     base_url: LLM_BASE_URL ?? 'https://api.openai.com/v1 (default)'
   });
@@ -190,6 +249,12 @@ app.post('/api/recognize', async (req, res) => {
     const dataUrl = image.startsWith('data:')
       ? image
       : `data:${mediaType};base64,${image}`;
+
+    if (recognitionMode !== 'llm') {
+      const parsed = await recognizeWithDetector(dataUrl, mediaType);
+      res.json(parsed);
+      return;
+    }
 
     const completionParams: ChatCompletionParams = {
       model: LLM_MODEL,
@@ -251,6 +316,11 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`mahjong-calc server listening on http://0.0.0.0:${port}`);
   console.log(`  serving static files from ${distDir}`);
+  console.log(`  recognition mode: ${recognitionMode}`);
+  if (recognitionMode !== 'llm') {
+    console.log(`  detector: ${detectorPython} ${detectorScript}`);
+    return;
+  }
   console.log(
     `  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`
   );
