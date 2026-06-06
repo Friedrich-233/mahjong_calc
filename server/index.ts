@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -20,22 +19,13 @@ import OpenAI from 'openai';
 // The API key never reaches the browser: the frontend only ever calls /api.
 // ---------------------------------------------------------------------------
 
-const {
-  PORT,
-  DIST_DIR,
-  DETECTOR_PYTHON,
-  LLM_API_KEY,
-  LLM_BASE_URL,
-  LLM_MODEL,
-  RECOGNITION_MODE
-} = process.env;
+const { PORT, DIST_DIR, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_THINKING } =
+  process.env;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(PORT) || 5173;
 const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
-const detectorPython = DETECTOR_PYTHON || 'python3';
-const detectorScript = path.join(__dirname, 'detector.py');
-const recognitionMode = (RECOGNITION_MODE || 'hf').toLowerCase();
+const llmThinking = (LLM_THINKING || 'adaptive').toLowerCase();
 
 const SYSTEM_PROMPT = `You are an expert Japanese riichi mahjong tile recognizer. You are given ONE photo of a player's winning hand; called melds may be laid to the side and are often rotated. Identify every tile.
 
@@ -50,6 +40,8 @@ Output ONLY a JSON object (no prose, no markdown fences) of exactly this shape:
 mpsz notation: m = man (characters), p = pin (circles/dots), s = sou (bamboo), z = honors where 1z..7z = East, South, West, North, White (haku), Green (hatsu), Red (chun). Write digits then suit, e.g. 123m, 5566p, 789s, 11z. Red fives are written as 0 (0m, 0p, 0s).
 
 Rules:
+- Think carefully before the final answer: segment visible tiles, classify each tile, check total count, identify separated/rotated called melds, then reconcile the result to the JSON contract.
+- Do not reveal reasoning in the final answer. The final answer must be JSON only.
 - Count carefully. A complete winning hand is 14 tiles total across concealed + meld tiles + winning tile.
 - Tiles that are called / rotated / set apart go in "melds"; the rest go in "concealed".
 - Detect red fives by their red center and use 0.
@@ -74,6 +66,7 @@ type ChatCompletionParams = Parameters<
   OpenAI['chat']['completions']['create']
 >[0] & {
   thinking?: { type: 'disabled' | 'enabled' | 'adaptive' };
+  reasoning_split?: boolean;
 };
 
 const isMiniMaxM3 = (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
@@ -168,60 +161,15 @@ const contentToText = (content: unknown): string => {
   return '';
 };
 
-const recognizeWithDetector = (
-  image: string,
-  mediaType: string
-): Promise<unknown> =>
-  new Promise((resolve, reject) => {
-    const child = spawn(detectorPython, [detectorScript], {
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-    const timeout = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error('mahjong-detector timed out'));
-    }, 60_000);
-
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', chunk => {
-      stdout += String(chunk);
-    });
-    child.stderr.on('data', chunk => {
-      stderr += String(chunk);
-    });
-    child.on('error', err => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-    child.on('close', code => {
-      clearTimeout(timeout);
-      if (code !== 0) {
-        reject(
-          new Error(
-            stderr.trim() ||
-              `mahjong-detector exited with code ${code ?? 'unknown'}`
-          )
-        );
-        return;
-      }
-      try {
-        resolve(extractJson(stdout));
-      } catch {
-        reject(new Error(`mahjong-detector returned invalid JSON: ${stdout}`));
-      }
-    });
-    child.stdin.end(JSON.stringify({ image, media_type: mediaType }));
-  });
-
 const app = express();
 app.use(express.json({ limit: '20mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    mode: recognitionMode,
-    configured: recognitionMode === 'llm' ? Boolean(LLM_API_KEY) : true,
-    detector_python: detectorPython,
+    mode: 'llm',
+    configured: Boolean(LLM_API_KEY),
+    thinking: isMiniMaxM3 ? llmThinking : 'prompt-only',
     model: LLM_MODEL ?? null,
     base_url: LLM_BASE_URL ?? 'https://api.openai.com/v1 (default)'
   });
@@ -250,16 +198,17 @@ app.post('/api/recognize', async (req, res) => {
       ? image
       : `data:${mediaType};base64,${image}`;
 
-    if (recognitionMode !== 'llm') {
-      const parsed = await recognizeWithDetector(dataUrl, mediaType);
-      res.json(parsed);
-      return;
-    }
-
     const completionParams: ChatCompletionParams = {
       model: LLM_MODEL,
-      max_completion_tokens: 1500,
-      ...(isMiniMaxM3 ? { thinking: { type: 'disabled' } as const } : {}),
+      max_completion_tokens: 3000,
+      ...(isMiniMaxM3
+        ? {
+            thinking: {
+              type: llmThinking === 'disabled' ? 'disabled' : 'adaptive'
+            } as const,
+            reasoning_split: true
+          }
+        : {}),
       temperature: 0,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -268,7 +217,7 @@ app.post('/api/recognize', async (req, res) => {
           content: [
             {
               type: 'text',
-              text: 'Recognize the hand in this photo. Output only the JSON object.'
+              text: 'Carefully reason about the visible tiles and called melds, but return only the final JSON object. Do not include markdown, prose, or reasoning in the final content.'
             },
             { type: 'image_url', image_url: { url: dataUrl } }
           ]
@@ -316,14 +265,12 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`mahjong-calc server listening on http://0.0.0.0:${port}`);
   console.log(`  serving static files from ${distDir}`);
-  console.log(`  recognition mode: ${recognitionMode}`);
-  if (recognitionMode !== 'llm') {
-    console.log(`  detector: ${detectorPython} ${detectorScript}`);
-    return;
-  }
   console.log(
     `  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`
   );
+  if (isMiniMaxM3) {
+    console.log(`  MiniMax thinking: ${llmThinking}`);
+  }
   if (!LLM_API_KEY) {
     console.warn(
       '  WARNING: LLM_API_KEY is not set — /api/recognize will fail.'

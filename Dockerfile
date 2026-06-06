@@ -34,28 +34,11 @@ RUN npm run build
 # handles /api/* — it does NOT need the frontend build toolchain.
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
-ENV HF_HOME=/opt/huggingface
 WORKDIR /app/server
-
-RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates \
- && rm -rf /var/lib/apt/lists/*
 
 # Install only the backend's runtime deps (express, openai, tsx).
 COPY server/package.json ./package.json
 RUN npm install --omit=dev --no-audit --no-fund
-
-# Install the detector runtime. On Raspberry Pi / arm64, piwheels provides
-# suitable wheels for the package's Python dependencies when PyPI does not.
-COPY server/requirements.txt ./requirements.txt
-RUN python3 -m venv /opt/mahjong-detector \
- && /opt/mahjong-detector/bin/python -m pip install --no-cache-dir --upgrade pip \
- && /opt/mahjong-detector/bin/python -m pip install --no-cache-dir \
-      --extra-index-url https://www.piwheels.org/simple \
-      -r requirements.txt
-
-# Pre-download the Mahjong Soul tile classifier used in hf mode.
-RUN /opt/mahjong-detector/bin/python -c "from transformers import AutoImageProcessor, AutoModelForImageClassification; model='krmin/mahjong_vision'; subfolder='vision_transformer_local'; AutoImageProcessor.from_pretrained(model, subfolder=subfolder); AutoModelForImageClassification.from_pretrained(model, subfolder=subfolder)"
 
 # Backend source + the built frontend.
 COPY server/ ./
@@ -63,11 +46,6 @@ COPY --from=builder /app/dist /app/dist
 
 # The container always listens on 5173; publish it to a host port via compose.
 ENV PORT=5173
-ENV DETECTOR_PYTHON=/opt/mahjong-detector/bin/python
-ENV RECOGNITION_MODE=hf
-ENV DETECTOR_CLASSIFIER=hf
-ENV DETECTOR_HF_MODEL=krmin/mahjong_vision
-ENV DETECTOR_HF_SUBFOLDER=vision_transformer_local
-ENV TORCH_NUM_THREADS=2
+ENV LLM_THINKING=adaptive
 EXPOSE 5173
 CMD ["npm", "start"]

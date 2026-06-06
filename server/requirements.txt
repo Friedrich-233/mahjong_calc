@@ -1,4 +1,0 @@
-mahjong-detector==0.0.6
-torch
-transformers>=4.34,<5
-safetensors
