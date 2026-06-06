@@ -67,7 +67,9 @@ type ChatCompletionParams = Parameters<
 const isMiniMaxM3 = (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
 
 const findJsonObject = (text: string): string | null => {
-  const anchor = text.indexOf('"concealed"');
+  const quotedAnchor = text.indexOf('"concealed"');
+  const looseAnchor = text.search(/\bconcealed\b/);
+  const anchor = quotedAnchor >= 0 ? quotedAnchor : looseAnchor;
   if (anchor < 0) return null;
   const start = text.lastIndexOf('{', anchor);
   if (start < 0) return null;
@@ -99,6 +101,29 @@ const findJsonObject = (text: string): string | null => {
   return null;
 };
 
+const repairJsonLikeObject = (text: string): string =>
+  text
+    .trim()
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\bNone\b|\bnil\b|\bundefined\b/gi, 'null')
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(
+      /([{,]\s*)(concealed|melds|type|tiles|from|winning_tile|aka)\s*:/g,
+      '$1"$2":'
+    )
+    .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_, value: string) => {
+      return `: "${value.replace(/"/g, '\\"')}"`;
+    });
+
+const parseJsonObject = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return JSON.parse(repairJsonLikeObject(text));
+  }
+};
+
 // Models sometimes wrap JSON in fences, add stray prose, or (MiniMax M3 by
 // default) prepend <think>...</think>. Prefer the object containing our contract
 // key instead of blindly parsing the first brace in the response.
@@ -111,7 +136,7 @@ const extractJson = (raw: string): unknown => {
   if (objectText === null) {
     throw new Error('No JSON object found in model output');
   }
-  return JSON.parse(objectText);
+  return parseJsonObject(objectText);
 };
 
 // Some providers return message.content as an array of content parts.

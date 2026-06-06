@@ -49,10 +49,15 @@ export const recognizeImage = async (
   });
   const data: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message =
+    const error =
       data && typeof data === 'object' && 'error' in data
         ? String((data as { error: unknown }).error)
         : `Recognition failed (HTTP ${response.status})`;
+    const raw =
+      data && typeof data === 'object' && 'raw' in data
+        ? String((data as { raw: unknown }).raw)
+        : '';
+    const message = raw ? `${error}: ${raw.slice(0, 800)}` : error;
     throw new Error(message);
   }
   return data as RecognitionResult;
