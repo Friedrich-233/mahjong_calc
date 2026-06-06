@@ -36,7 +36,7 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app/server
 
-# Install only the backend's runtime deps (express, openai, tsx).
+# Install only the backend's runtime deps (express, tsx).
 COPY server/package.json ./package.json
 RUN npm install --omit=dev --no-audit --no-fund
 
@@ -46,6 +46,5 @@ COPY --from=builder /app/dist /app/dist
 
 # The container always listens on 5173; publish it to a host port via compose.
 ENV PORT=5173
-ENV LLM_THINKING=adaptive
 EXPOSE 5173
 CMD ["npm", "start"]

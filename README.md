@@ -35,56 +35,56 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-# 📸 Photo recognition & self-hosting (fork additions)
+# 📸 Roboflow YOLO recognition & self-hosting (fork branch)
 
-This fork adds a **"Photo" button** to the tile input. Take or upload a photo of a
-winning hand and a vision LLM fills in the concealed tiles, called melds, the
-winning tile, and red fives. You then set riichi / winds / dora / ron-tsumo with
-the **existing** controls and the original calculator does the
-scoring. The original calculator is untouched — recognition only fills tiles.
+This branch adds a **"Photo" button** to the tile input and uses Roboflow Hosted
+YOLO inference to detect tile classes. It is intentionally **Roboflow-only**:
+there is no LLM call, no OpenAI-compatible provider layer, and no API key in the
+browser.
+
+Current limitation: Roboflow object detection returns boxes and classes only.
+This branch sorts detected tiles visually, fills all detections as concealed
+tiles, and treats the last detected tile as the winning tile. It does **not**
+infer called melds, rotated tile direction, or red fives. Use it to compare pure
+YOLO tile classification quality.
 
 ## How it works
 
 - The frontend is the original app plus one dialog (`src/recognition/`).
 - A tiny **Express backend** (`server/index.ts`):
-  1. `POST /api/recognize` — receives a (browser-downscaled) photo, calls a
-     vision LLM, and returns the recognized hand as JSON.
-  2. Serves the built frontend (`dist/`) with an SPA fallback.
-- Frontend and backend are **same-origin** (one port, one container) → no CORS.
-- The API key lives only on the server. The browser only ever calls `/api`.
+  1. `POST /api/recognize` receives a browser-downscaled photo.
+  2. The backend sends base64 image data to Roboflow.
+  3. Roboflow class names like `m1`, `p5`, `z7` are converted to mpsz.
+  4. The backend returns the same JSON contract the frontend already applies.
+- Frontend and backend are **same-origin** (one port, one container) -> no CORS.
+- The Roboflow API key lives only on the server. The browser only calls `/api`.
 
-## Provider / model (OpenAI-compatible)
+Default model:
 
-The backend uses the OpenAI-compatible Chat Completions API, so any provider that
-speaks it works:
+`riichi-mahjong-tiles-y8hce/1`
 
-| Variable       | Meaning                              | Example                            |
-| -------------- | ------------------------------------ | ---------------------------------- |
-| `LLM_PROVIDER` | `auto`, `minimax`, `kimi`, `openai`, `claude`, or `compatible` | `auto` |
-| `LLM_BASE_URL` | Provider endpoint (blank = OpenAI)   | `https://api.moonshot.ai/v1`       |
-| `LLM_API_KEY`  | Provider API key (server-side only)  | `sk-...`                           |
-| `LLM_MODEL`    | A vision-capable model id            | `kimi-k2.6`                        |
-| `LLM_MAX_TOKENS` | Output token budget                | `3000`                             |
-| `LLM_THINKING` | MiniMax-M3 thinking mode             | `adaptive`                         |
-| `PORT`         | Port the server listens on           | `5173` (default)                   |
+Model page:
 
-Provider examples:
+https://universe.roboflow.com/stanislavs-workspace-iwibi/riichi-mahjong-tiles-y8hce/model/1
 
-| Provider        | `LLM_PROVIDER` | `LLM_BASE_URL`                              | `LLM_MODEL`                                  |
-| --------------- | -------------- | ------------------------------------------- | -------------------------------------------- |
-| Kimi (Moonshot) | `kimi`         | `https://api.moonshot.ai/v1` (`.cn` in CN)  | `kimi-k2.6`                                  |
-| MiniMax         | `minimax`      | `https://api.minimax.io/v1`                 | `MiniMax-M3`                                 |
-| OpenAI          | `openai`       | `https://api.openai.com/v1` (or blank)      | `gpt-4o`                                     |
-| Claude          | `claude`       | `https://api.anthropic.com/v1/`             | `claude-opus-4-8`                            |
+Roboflow Hosted API docs:
 
-For `MiniMax-M3`, `LLM_THINKING=adaptive` explicitly keeps model thinking on and
-the backend asks MiniMax to split reasoning away from the final content. The
-backend still extracts only the final JSON answer.
+https://docs.roboflow.com/deploy/serverless/object-detection
 
-Provider-specific request parameters are isolated: MiniMax thinking fields are
-only sent to MiniMax, Claude uses `max_tokens`, and Kimi/OpenAI use
-`max_completion_tokens`. If a compatible endpoint rejects the token parameter,
-the backend retries once with the alternate parameter.
+## Roboflow configuration
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `ROBOFLOW_API_KEY` | Roboflow API key, server-side only | empty |
+| `ROBOFLOW_BASE_URL` | Hosted inference endpoint | `https://serverless.roboflow.com` |
+| `ROBOFLOW_MODEL` | Roboflow model id | `riichi-mahjong-tiles-y8hce/1` |
+| `ROBOFLOW_CONFIDENCE` | Detection confidence threshold, 0-100 | `30` |
+| `ROBOFLOW_OVERLAP` | Roboflow overlap/NMS setting, 0-100 | `30` |
+| `ROBOFLOW_DEDUP_IOU` | Extra server-side duplicate-box filter, 0-1 | `0.55` |
+| `PORT` | Port the server listens on inside the container | `5173` |
+
+If predictions miss tiles, lower `ROBOFLOW_CONFIDENCE`. If duplicate boxes
+produce extra tiles, lower `ROBOFLOW_DEDUP_IOU` or raise `ROBOFLOW_CONFIDENCE`.
 
 ## Local development
 
@@ -95,22 +95,22 @@ Prerequisites: Node 22+, Rust + `wasm-pack` (the decomposer is compiled from Rus
 npm run build:wasm
 npm install
 
-# terminal 1 — backend on http://localhost:8787
-LLM_BASE_URL=... LLM_API_KEY=... LLM_MODEL=... npm run server:dev
+# terminal 1 - backend on http://localhost:8787
+ROBOFLOW_API_KEY=... npm run server:dev
 
-# terminal 2 — frontend on http://localhost:5173 (proxies /api to :8787)
+# terminal 2 - frontend on http://localhost:5173 (proxies /api to :8787)
 npm run dev
 ```
 
-Open http://localhost:5173. Without the `LLM_*` vars the calculator still works
-fully; only photo recognition is disabled.
+Open http://localhost:5173. Without `ROBOFLOW_API_KEY`, the calculator still
+works fully; only photo recognition fails with a clear message.
 
-## Production — Docker Compose
+## Production - Docker Compose
 
 One container builds the frontend and serves it + `/api` on a single port.
 
 ```sh
-cp .env.example .env      # fill in LLM_BASE_URL / LLM_API_KEY / LLM_MODEL
+cp .env.example .env      # fill in ROBOFLOW_API_KEY
 docker compose up -d --build
 ```
 
@@ -120,32 +120,30 @@ Silicon and on a Raspberry Pi (arm64).
 
 ## Deploy on a Raspberry Pi with Portainer
 
-1. Push this project to a Git repo (GitHub/Gitea) the Pi can reach — **do not**
-   commit your `.env` (it's git-ignored and docker-ignored by default).
-2. In Portainer: **Stacks → Add stack**.
-3. Name it `mahjong`, choose **Repository**, and point it at your repo URL, the
+1. Push this branch to a Git repo the Pi can reach. Do not commit your `.env`.
+2. In Portainer: **Stacks -> Add stack**.
+3. Name it `mahjong`, choose **Repository**, and point it at your repo URL, this
    branch, and the compose path `docker-compose.yml`.
 4. Under **Environment variables**, add:
-   - `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` — your provider settings
-   - optionally `LLM_THINKING=adaptive` — MiniMax-M3 reasoning mode
-   - optionally `APP_PORT` — the host port (default `5173`)
+   - `ROBOFLOW_API_KEY` - required
+   - optionally `ROBOFLOW_MODEL`, `ROBOFLOW_CONFIDENCE`, `ROBOFLOW_OVERLAP`,
+     `ROBOFLOW_DEDUP_IOU`
+   - optionally `APP_PORT` - host port, default `5173`
 5. **Deploy the stack.** Portainer clones the repo and runs the multi-stage build
-   on the Pi. The first build takes a few minutes (it compiles the Rust→wasm
-   package). When it's up, the app is at `http://<pi-ip>:5173`.
-6. Point Cloudflare / your DNS at the Pi. The service only needs port 5173 — no
-   reverse-proxy or TLS config is required on this side.
+   on the Pi. The first build takes a few minutes because it compiles the
+   Rust->wasm package. When it is up, the app is at `http://<pi-ip>:5173`.
 
 Update later: push to the repo, then **Pull and redeploy** the stack in Portainer.
 
-You can sanity-check the backend at `http://<host>:<port>/api/health` — it reports
-whether a key and model are configured.
+You can sanity-check the backend at `http://<host>:<port>/api/health`. It reports
+whether a Roboflow key is configured and which model/thresholds are active.
 
-## What recognition fills (and what it doesn't)
+## What recognition fills
 
-- **Fills:** concealed tiles, called melds (chi / pon / kan), the winning tile,
-  and red fives.
-- **You set manually (unchanged):** riichi / ippatsu / etc., round & seat wind,
-  dora indicators, ron vs tsumo, and the rule set.
+- **Fills in this branch:** YOLO-detected tile classes, sorted into the hand; the
+  last detected tile is marked as the winning tile.
+- **Not filled in this branch:** melds, red fives, true winning-tile separation,
+  riichi / ippatsu / winds / dora / ron-tsumo / rule options.
 - If recognition is wrong, fix the tiles with the normal controls or take another
-  photo. If the backend isn't configured or the call fails, you get a clear error
-  and can still input the hand by hand.
+  photo. If the backend is not configured or the call fails, you get a clear
+  error and can still input the hand by hand.

@@ -1,265 +1,296 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import OpenAI from 'openai';
 
 // ---------------------------------------------------------------------------
-// Minimal backend for mahjong-calc:
-//   * POST /api/recognize  – send a photo to a vision LLM, get back the hand
-//   * GET  /api/health     – quick "is it configured" probe
-//   * everything else      – serve the built frontend (dist/) with SPA fallback
+// Roboflow-only backend for mahjong-calc:
+//   * POST /api/recognize  - send a photo to a Roboflow YOLO model
+//   * GET  /api/health     - quick configuration probe
+//   * everything else      - serve the built frontend with SPA fallback
 //
-// The LLM call uses the OpenAI-compatible Chat Completions API, so the same
-// code works with any provider that speaks it (Kimi/Moonshot, MiniMax, OpenAI,
-// OpenRouter, or Claude via Anthropic's OpenAI-compat endpoint). Pick the
-// provider purely through environment variables:
-//   LLM_BASE_URL  – e.g. https://api.moonshot.ai/v1   (omit for OpenAI default)
-//   LLM_API_KEY   – the provider's API key            (server-side only!)
-//   LLM_MODEL     – a vision-capable model id
-// The API key never reaches the browser: the frontend only ever calls /api.
+// The Roboflow API key stays on the server. The browser only calls /api.
 // ---------------------------------------------------------------------------
 
 const {
   PORT,
   DIST_DIR,
-  LLM_API_KEY,
-  LLM_BASE_URL,
-  LLM_MODEL,
-  LLM_PROVIDER,
-  LLM_THINKING,
-  LLM_MAX_TOKENS
+  ROBOFLOW_API_KEY,
+  ROBOFLOW_BASE_URL,
+  ROBOFLOW_MODEL,
+  ROBOFLOW_CONFIDENCE,
+  ROBOFLOW_OVERLAP,
+  ROBOFLOW_DEDUP_IOU
 } = process.env;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(PORT) || 5173;
 const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
-const llmThinking = (LLM_THINKING || 'adaptive').toLowerCase();
-const maxOutputTokens = Number(LLM_MAX_TOKENS) || 3000;
 
-const SYSTEM_PROMPT = `You are an expert Japanese riichi mahjong tile recognizer. You are given ONE photo of a player's winning hand; called melds may be laid to the side and are often rotated. Identify every tile.
+const roboflowBaseUrl =
+  ROBOFLOW_BASE_URL?.replace(/\/+$/, '') || 'https://serverless.roboflow.com';
+const roboflowModel =
+  ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'riichi-mahjong-tiles-y8hce/1';
 
-Output ONLY a JSON object (no prose, no markdown fences) of exactly this shape:
-{
-  "concealed": "<tiles in mpsz>",
-  "melds": [ { "type": "chi"|"pon"|"kan", "tiles": "<mpsz>", "from": "left"|"across"|"right" } ],
-  "winning_tile": "<one tile in mpsz, or null>",
-  "aka": ["<red fives like 0m/0p/0s>"]
+const parseNumber = (value: string | undefined, fallback: number): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const roboflowConfidence = clamp(
+  Math.round(parseNumber(ROBOFLOW_CONFIDENCE, 30)),
+  0,
+  100
+);
+const roboflowOverlap = clamp(
+  Math.round(parseNumber(ROBOFLOW_OVERLAP, 30)),
+  0,
+  100
+);
+const dedupeIou = clamp(parseNumber(ROBOFLOW_DEDUP_IOU, 0.55), 0, 1);
+
+interface RoboflowPrediction {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+  class: string;
 }
 
-mpsz notation: m = man (characters), p = pin (circles/dots), s = sou (bamboo), z = honors where 1z..7z = East, South, West, North, White (haku), Green (hatsu), Red (chun). Write digits then suit, e.g. 123m, 5566p, 789s, 11z. Red fives are written as 0 (0m, 0p, 0s).
+interface DetectedTile extends RoboflowPrediction {
+  tile: string;
+}
 
-Rules:
-- Think carefully before the final answer: segment visible tiles, classify each tile, check total count, identify separated/rotated called melds, then reconcile the result to the JSON contract.
-- Do not reveal reasoning in the final answer. The final answer must be JSON only.
-- Count carefully. A complete winning hand is 14 tiles total across concealed + meld tiles + winning tile.
-- Tiles that are called / rotated / set apart go in "melds"; the rest go in "concealed".
-- Detect red fives by their red center and use 0.
-- Do NOT infer round wind, seat wind, riichi, dora, or ron-vs-tsumo. Those are out of scope.
-- If a tile is ambiguous, pick the single most likely tile and still return valid JSON.`;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object';
 
-// Reuse one client across requests; configuration comes from the environment.
-let openaiClient: OpenAI | null = null;
-const getClient = (): OpenAI => {
-  if (!LLM_API_KEY) throw new Error('LLM_API_KEY is not set on the server');
-  if (openaiClient === null) {
-    openaiClient = new OpenAI(
-      LLM_BASE_URL
-        ? { apiKey: LLM_API_KEY, baseURL: LLM_BASE_URL }
-        : { apiKey: LLM_API_KEY }
-    );
-  }
-  return openaiClient;
+const dataUrlToBase64 = (image: string): string =>
+  image
+    .replace(/^data:[^,]*,/, '')
+    .replace(/\s/g, '')
+    .trim();
+
+const roboflowEndpoint = (): string => {
+  const url = new URL(`${roboflowBaseUrl}/${roboflowModel}`);
+  url.searchParams.set('api_key', ROBOFLOW_API_KEY ?? '');
+  url.searchParams.set('confidence', String(roboflowConfidence));
+  url.searchParams.set('overlap', String(roboflowOverlap));
+  url.searchParams.set('format', 'json');
+  return url.toString();
 };
 
-type ChatCompletionParams = Parameters<
-  OpenAI['chat']['completions']['create']
->[0] & {
-  max_tokens?: number;
-  max_completion_tokens?: number;
-  thinking?: { type: 'disabled' | 'enabled' | 'adaptive' };
-  reasoning_split?: boolean;
+const numberValue = (value: unknown): number | null => {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 };
 
-type Provider = 'minimax' | 'kimi' | 'openai' | 'claude' | 'compatible';
-
-const inferProvider = (): Provider => {
-  const explicit = (LLM_PROVIDER || 'auto').toLowerCase();
+const predictionFromUnknown = (value: unknown): RoboflowPrediction | null => {
+  if (!isRecord(value)) return null;
+  const x = numberValue(value.x);
+  const y = numberValue(value.y);
+  const width = numberValue(value.width);
+  const height = numberValue(value.height);
+  const confidence = numberValue(value.confidence);
+  const className = value.class;
   if (
-    explicit === 'minimax' ||
-    explicit === 'kimi' ||
-    explicit === 'openai' ||
-    explicit === 'claude' ||
-    explicit === 'anthropic' ||
-    explicit === 'compatible'
+    x === null ||
+    y === null ||
+    width === null ||
+    height === null ||
+    confidence === null ||
+    typeof className !== 'string'
   ) {
-    return explicit === 'anthropic' ? 'claude' : explicit;
+    return null;
   }
-
-  const baseUrl = (LLM_BASE_URL || '').toLowerCase();
-  const model = (LLM_MODEL || '').toLowerCase();
-  if (baseUrl.includes('minimax') || model.startsWith('minimax')) {
-    return 'minimax';
-  }
-  if (
-    baseUrl.includes('moonshot') ||
-    baseUrl.includes('kimi') ||
-    model.startsWith('kimi') ||
-    model.startsWith('moonshot')
-  ) {
-    return 'kimi';
-  }
-  if (baseUrl.includes('anthropic') || model.startsWith('claude')) {
-    return 'claude';
-  }
-  if (!baseUrl || baseUrl.includes('openai')) return 'openai';
-  return 'compatible';
+  return { x, y, width, height, confidence, class: className };
 };
 
-const provider = inferProvider();
-const isMiniMaxM3 =
-  provider === 'minimax' && (LLM_MODEL ?? '').toLowerCase() === 'minimax-m3';
+const normalizeClassName = (className: string): string => {
+  const compact = className
+    .toLowerCase()
+    .replace(/mahjong/g, '')
+    .replace(/riichi/g, '')
+    .replace(/tiles?/g, '')
+    .replace(/[\s_.-]+/g, '');
 
-const tokenParamForProvider = (
-  p: Provider
-): Pick<ChatCompletionParams, 'max_completion_tokens' | 'max_tokens'> =>
-  p === 'claude'
-    ? { max_tokens: maxOutputTokens }
-    : { max_completion_tokens: maxOutputTokens };
-
-const temperatureParamForProvider = (
-  p: Provider
-): Pick<ChatCompletionParams, 'temperature'> =>
-  p === 'kimi' ? {} : { temperature: 0 };
-
-const swapTokenParam = (params: ChatCompletionParams): ChatCompletionParams => {
-  const { max_completion_tokens, max_tokens, ...rest } = params;
-  return typeof max_completion_tokens === 'number'
-    ? { ...rest, max_tokens: max_completion_tokens }
-    : { ...rest, max_completion_tokens: max_tokens ?? maxOutputTokens };
-};
-
-const findJsonObject = (text: string): string | null => {
-  const quotedAnchor = text.indexOf('"concealed"');
-  const looseAnchor = text.search(/\bconcealed\b/);
-  const anchor = quotedAnchor >= 0 ? quotedAnchor : looseAnchor;
-  if (anchor < 0) return null;
-  const start = text.lastIndexOf('{', anchor);
-  if (start < 0) return null;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < text.length; i += 1) {
-    const ch = text[i];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (ch === '\\') {
-      escaped = true;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (ch === '{') depth += 1;
-    if (ch === '}') {
-      depth -= 1;
-      if (depth === 0) return text.slice(start, i + 1);
-    }
+  const honorByName: Array<[RegExp, string]> = [
+    [/(east|ton|dong)/, '1z'],
+    [/(south|nan)/, '2z'],
+    [/(west|shaa|sha|xi)/, '3z'],
+    [/(north|pei|bei)/, '4z'],
+    [/(white|haku|bai)/, '5z'],
+    [/(green|hatsu|fa)/, '6z'],
+    [/(chun|red.*dragon|hongzhong|zhong)/, '7z']
+  ];
+  for (const [pattern, tile] of honorByName) {
+    if (pattern.test(compact)) return tile;
   }
-  return null;
-};
 
-const repairJsonLikeObject = (text: string): string =>
-  text
-    .trim()
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/\bNone\b|\bnil\b|\bundefined\b/gi, 'null')
-    .replace(/,\s*([}\]])/g, '$1')
-    .replace(
-      /([{,]\s*)(concealed|melds|type|tiles|from|winning_tile|aka)\s*:/g,
-      '$1"$2":'
-    )
-    .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_, value: string) => {
-      return `: "${value.replace(/"/g, '\\"')}"`;
-    });
+  let match = compact.match(/^([mps])([0-9])$/);
+  if (match?.[1] && match?.[2]) return `${match[2]}${match[1]}`;
 
-const parseJsonObject = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return JSON.parse(repairJsonLikeObject(text));
+  match = compact.match(/^([mps])([0-9])/);
+  if (match?.[1] && match?.[2]) {
+    const digit =
+      match[2] === '5' && /(aka|red)/.test(compact) ? '0' : match[2];
+    return `${digit}${match[1]}`;
   }
-};
 
-// Models sometimes wrap JSON in fences, add stray prose, or (MiniMax M3 by
-// default) prepend <think>...</think>. Prefer the object containing our contract
-// key instead of blindly parsing the first brace in the response.
-const extractJson = (raw: string): unknown => {
-  let text = raw.trim();
-  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence?.[1]) text = fence[1].trim();
-  const objectText = findJsonObject(text);
-  if (objectText === null) {
-    throw new Error('No JSON object found in model output');
-  }
-  return parseJsonObject(objectText);
-};
+  match = compact.match(/^z([1-7])$/);
+  if (match?.[1]) return `${match[1]}z`;
 
-// Some providers return message.content as an array of content parts.
-const contentToText = (content: unknown): string => {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) {
-    return content
-      .map(part =>
-        typeof part === 'string'
-          ? part
-          : part && typeof part === 'object' && 'text' in part
-            ? String((part as { text: unknown }).text)
-            : ''
-      )
-      .join('');
+  match = compact.match(/^z([1-7])/);
+  if (match?.[1]) return `${match[1]}z`;
+
+  match = compact.match(/^([0-9])([mpsz])$/);
+  if (match?.[1] && match?.[2]) return `${match[1]}${match[2]}`;
+
+  match = compact.match(/^([0-9])([mps])/);
+  if (match?.[1] && match?.[2]) {
+    const digit =
+      match[1] === '5' && /(aka|red)/.test(compact) ? '0' : match[1];
+    return `${digit}${match[2]}`;
   }
+
+  const number = compact.match(/[0-9]/)?.[0] ?? '';
+  const suit = /^(?:.*)(man|manzu|character|characters|wan|wanzu)/.test(compact)
+    ? 'm'
+    : /^(?:.*)(pin|pinzu|circle|circles|dot|dots|tong)/.test(compact)
+      ? 'p'
+      : /^(?:.*)(sou|souzu|bamboo|bam|suo)/.test(compact)
+        ? 's'
+        : '';
+
+  if (number && suit) {
+    const digit = number === '5' && /(aka|red)/.test(compact) ? '0' : number;
+    return `${digit}${suit}`;
+  }
+
   return '';
 };
 
-const errorMessage = (err: unknown): string =>
-  err instanceof Error ? err.message : String(err);
+const isValidMpszTile = (tile: string): boolean =>
+  /^[0-9][mps]$/.test(tile) || /^[1-7]z$/.test(tile);
 
-const createChatCompletion = async (params: ChatCompletionParams) => {
-  try {
-    return await getClient().chat.completions.create(params);
-  } catch (err) {
-    const message = errorMessage(err).toLowerCase();
-    if (
-      message.includes('max_completion_tokens') ||
-      message.includes('max_tokens')
-    ) {
-      console.warn('[recognize] retrying with alternate token parameter');
-      return await getClient().chat.completions.create(swapTokenParam(params));
+const iou = (a: RoboflowPrediction, b: RoboflowPrediction): number => {
+  const ax1 = a.x - a.width / 2;
+  const ay1 = a.y - a.height / 2;
+  const ax2 = a.x + a.width / 2;
+  const ay2 = a.y + a.height / 2;
+  const bx1 = b.x - b.width / 2;
+  const by1 = b.y - b.height / 2;
+  const bx2 = b.x + b.width / 2;
+  const by2 = b.y + b.height / 2;
+  const ix1 = Math.max(ax1, bx1);
+  const iy1 = Math.max(ay1, by1);
+  const ix2 = Math.min(ax2, bx2);
+  const iy2 = Math.min(ay2, by2);
+  const intersection = Math.max(0, ix2 - ix1) * Math.max(0, iy2 - iy1);
+  const areaA = a.width * a.height;
+  const areaB = b.width * b.height;
+  const union = areaA + areaB - intersection;
+  return union > 0 ? intersection / union : 0;
+};
+
+const dedupePredictions = (
+  predictions: RoboflowPrediction[]
+): RoboflowPrediction[] => {
+  const kept: RoboflowPrediction[] = [];
+  for (const candidate of [...predictions].sort(
+    (a, b) => b.confidence - a.confidence
+  )) {
+    if (kept.every(existing => iou(candidate, existing) < dedupeIou)) {
+      kept.push(candidate);
     }
-    if (message.includes('temperature')) {
-      const { temperature, ...withoutTemperature } = params;
-      console.warn('[recognize] retrying without temperature parameter');
-      return await getClient().chat.completions.create(withoutTemperature);
-    }
-    if (
-      'thinking' in params ||
-      'reasoning_split' in params ||
-      message.includes('thinking') ||
-      message.includes('reasoning_split')
-    ) {
-      const { thinking, reasoning_split, ...withoutThinking } = params;
-      console.warn('[recognize] retrying without provider thinking extensions');
-      return await getClient().chat.completions.create(withoutThinking);
-    }
-    throw err;
   }
+  return kept;
+};
+
+const median = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+};
+
+const sortDetectedTiles = (tiles: DetectedTile[]): DetectedTile[] => {
+  const rowTolerance = Math.max(8, median(tiles.map(t => t.height)) * 0.55);
+  return [...tiles].sort((a, b) => {
+    if (Math.abs(a.y - b.y) > rowTolerance) return a.y - b.y;
+    return a.x - b.x;
+  });
+};
+
+const tilesToMpsz = (tiles: string[]): string => {
+  const groups: Record<'m' | 'p' | 's' | 'z', string> = {
+    m: '',
+    p: '',
+    s: '',
+    z: ''
+  };
+  for (const tile of tiles) {
+    const match = tile.match(/^([0-9])([mpsz])$/);
+    if (match?.[1] && match?.[2]) {
+      groups[match[2] as 'm' | 'p' | 's' | 'z'] += match[1];
+    }
+  }
+  return (['m', 'p', 's', 'z'] as const)
+    .map(suit => (groups[suit] ? `${groups[suit]}${suit}` : ''))
+    .join('');
+};
+
+const callRoboflow = async (base64Image: string): Promise<unknown> => {
+  if (!ROBOFLOW_API_KEY) {
+    throw new Error('ROBOFLOW_API_KEY is not set on the server');
+  }
+
+  const response = await fetch(roboflowEndpoint(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: base64Image
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!response.ok) {
+    const message =
+      isRecord(data) && typeof data.error === 'string' ? data.error : text;
+    throw new Error(message || `Roboflow request failed (${response.status})`);
+  }
+  return data;
+};
+
+const recognitionFromRoboflow = (data: unknown) => {
+  const predictions =
+    isRecord(data) && Array.isArray(data.predictions) ? data.predictions : [];
+  const parsed = predictions
+    .map(predictionFromUnknown)
+    .filter((p): p is RoboflowPrediction => p !== null);
+  const deduped = dedupePredictions(parsed);
+  const detected = deduped
+    .map(prediction => ({
+      ...prediction,
+      tile: normalizeClassName(prediction.class)
+    }))
+    .filter((prediction): prediction is DetectedTile =>
+      isValidMpszTile(prediction.tile)
+    );
+
+  const orderedTiles = sortDetectedTiles(detected).map(t => t.tile);
+  if (orderedTiles.length === 0) {
+    throw new Error('Roboflow did not return any mahjong tile predictions');
+  }
+
+  return {
+    concealed: tilesToMpsz(orderedTiles),
+    melds: [],
+    winning_tile: orderedTiles[orderedTiles.length - 1] ?? null,
+    aka: []
+  };
 };
 
 const app = express();
@@ -268,83 +299,28 @@ app.use(express.json({ limit: '20mb' }));
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    mode: 'llm',
-    provider,
-    configured: Boolean(LLM_API_KEY),
-    thinking: isMiniMaxM3 ? llmThinking : 'prompt-only',
-    max_tokens: maxOutputTokens,
-    model: LLM_MODEL ?? null,
-    base_url: LLM_BASE_URL ?? 'https://api.openai.com/v1 (default)'
+    mode: 'roboflow-yolo',
+    configured: Boolean(ROBOFLOW_API_KEY),
+    model: roboflowModel,
+    base_url: roboflowBaseUrl,
+    confidence: roboflowConfidence,
+    overlap: roboflowOverlap,
+    dedupe_iou: dedupeIou
   });
 });
 
 app.post('/api/recognize', async (req, res) => {
   try {
-    const body = (req.body ?? {}) as { image?: unknown; media_type?: unknown };
+    const body = (req.body ?? {}) as { image?: unknown };
     const image = typeof body.image === 'string' ? body.image : '';
-    const mediaType =
-      typeof body.media_type === 'string' ? body.media_type : 'image/jpeg';
-    if (!image) {
+    const base64Image = dataUrlToBase64(image);
+    if (!base64Image) {
       res.status(400).json({ error: 'No image provided.' });
       return;
     }
 
-    if (!LLM_MODEL) {
-      res
-        .status(500)
-        .json({ error: 'LLM_MODEL is not configured on the server.' });
-      return;
-    }
-
-    // Accept either a bare base64 string or a full data URL.
-    const dataUrl = image.startsWith('data:')
-      ? image
-      : `data:${mediaType};base64,${image}`;
-
-    const completionParams: ChatCompletionParams = {
-      model: LLM_MODEL,
-      ...tokenParamForProvider(provider),
-      ...temperatureParamForProvider(provider),
-      ...(isMiniMaxM3
-        ? {
-            thinking: {
-              type: llmThinking === 'disabled' ? 'disabled' : 'adaptive'
-            } as const,
-            reasoning_split: true
-          }
-        : {}),
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Carefully reason about the visible tiles and called melds, but return only the final JSON object. Do not include markdown, prose, or reasoning in the final content.'
-            },
-            { type: 'image_url', image_url: { url: dataUrl } }
-          ]
-        }
-      ]
-    };
-
-    const completion = await createChatCompletion(completionParams);
-
-    const raw = contentToText(completion.choices?.[0]?.message?.content);
-    if (!raw.trim()) {
-      res.status(502).json({ error: 'The model returned an empty response.' });
-      return;
-    }
-
-    try {
-      const parsed = extractJson(raw);
-      res.json(parsed);
-    } catch {
-      console.warn('[recognize] non-json model output:', raw.slice(0, 500));
-      res
-        .status(502)
-        .json({ error: 'The model did not return valid JSON.', raw });
-    }
+    const roboflowResult = await callRoboflow(base64Image);
+    res.json(recognitionFromRoboflow(roboflowResult));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[recognize] failed:', message);
@@ -353,8 +329,7 @@ app.post('/api/recognize', async (req, res) => {
 });
 
 // Serve the built frontend, then fall back to index.html for client-side
-// routes. A path-less middleware (rather than app.get('*')) keeps this working
-// on Express 5, whose router no longer accepts a bare "*" path pattern.
+// routes. A path-less middleware keeps this working on Express 5.
 app.use(express.static(distDir));
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
@@ -367,17 +342,15 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`mahjong-calc server listening on http://0.0.0.0:${port}`);
   console.log(`  serving static files from ${distDir}`);
+  console.log('  recognition: Roboflow YOLO');
+  console.log(`  Roboflow model: ${roboflowModel}`);
+  console.log(`  Roboflow base URL: ${roboflowBaseUrl}`);
   console.log(
-    `  LLM: ${LLM_MODEL ?? '(LLM_MODEL not set)'} @ ${LLM_BASE_URL ?? 'OpenAI default'}`
+    `  confidence: ${roboflowConfidence}, overlap: ${roboflowOverlap}, dedupe_iou: ${dedupeIou}`
   );
-  console.log(`  provider: ${provider}`);
-  console.log(`  max output tokens: ${maxOutputTokens}`);
-  if (isMiniMaxM3) {
-    console.log(`  MiniMax thinking: ${llmThinking}`);
-  }
-  if (!LLM_API_KEY) {
+  if (!ROBOFLOW_API_KEY) {
     console.warn(
-      '  WARNING: LLM_API_KEY is not set — /api/recognize will fail.'
+      '  WARNING: ROBOFLOW_API_KEY is not set - /api/recognize will fail.'
     );
   }
 });

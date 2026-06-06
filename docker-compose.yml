@@ -8,10 +8,10 @@ services:
       - '${APP_PORT:-5173}:5173'
     environment:
       - PORT=5173
-      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
-      - LLM_BASE_URL=${LLM_BASE_URL:-}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_MODEL=${LLM_MODEL:-}
-      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-3000}
-      - LLM_THINKING=${LLM_THINKING:-adaptive}
+      - ROBOFLOW_API_KEY=${ROBOFLOW_API_KEY:-}
+      - ROBOFLOW_BASE_URL=${ROBOFLOW_BASE_URL:-https://serverless.roboflow.com}
+      - ROBOFLOW_MODEL=${ROBOFLOW_MODEL:-riichi-mahjong-tiles-y8hce/1}
+      - ROBOFLOW_CONFIDENCE=${ROBOFLOW_CONFIDENCE:-30}
+      - ROBOFLOW_OVERLAP=${ROBOFLOW_OVERLAP:-30}
+      - ROBOFLOW_DEDUP_IOU=${ROBOFLOW_DEDUP_IOU:-0.55}
     restart: unless-stopped
