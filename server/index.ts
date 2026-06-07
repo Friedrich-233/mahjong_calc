@@ -29,7 +29,7 @@ const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
 const roboflowBaseUrl =
   ROBOFLOW_BASE_URL?.replace(/\/+$/, '') || 'https://serverless.roboflow.com';
 const roboflowModel =
-  ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'riichi-mahjong-tiles/1';
+  ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'majiang-z3y6n/1';
 
 const parseNumber = (value: string | undefined, fallback: number): number => {
   const n = Number(value);
