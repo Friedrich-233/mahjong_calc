@@ -32,19 +32,24 @@ const roboflowBaseUrl =
   ROBOFLOW_BASE_URL?.replace(/\/+$/, '') || 'https://serverless.roboflow.com';
 const roboflowModel = ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'mj-detection/4';
 
-type ModelPreset = 'auto' | 'generic' | 'wen-wu-37';
+type ModelPreset = 'auto' | 'generic' | 'mpsz-labels' | 'wen-wu-37';
 
 const normalizePreset = (preset: string | undefined): ModelPreset => {
   const value = (preset ?? 'auto').toLowerCase();
-  return value === 'generic' || value === 'wen-wu-37' ? value : 'auto';
+  return value === 'generic' || value === 'mpsz-labels' || value === 'wen-wu-37'
+    ? value
+    : 'auto';
 };
 
-const inferPreset = (): Exclude<ModelPreset, 'auto'> => {
+const inferPreset = (): 'mpsz-labels' | 'wen-wu-37' => {
   const explicit = normalizePreset(ROBOFLOW_MODEL_PRESET);
-  if (explicit !== 'auto') return explicit;
+  if (explicit === 'wen-wu-37') return explicit;
+  if (explicit === 'generic' || explicit === 'mpsz-labels') {
+    return 'mpsz-labels';
+  }
   return roboflowModel.toLowerCase().includes('mj-detection')
     ? 'wen-wu-37'
-    : 'generic';
+    : 'mpsz-labels';
 };
 
 const modelPreset = inferPreset();
@@ -209,21 +214,36 @@ const customClassMap = parseClassMap(ROBOFLOW_CLASS_MAP);
 
 const presetClassMap = modelPreset === 'wen-wu-37' ? WEN_WU_37_CLASS_MAP : {};
 
-const mappedClassName = (className: string, classId: number | null): string => {
+const customMappedClassName = (
+  className: string,
+  classId: number | null
+): string => {
   const classKey = className.trim();
   const classIdKey = classId === null ? '' : String(classId);
-  return (
-    customClassMap[classKey] ??
-    customClassMap[classIdKey] ??
-    presetClassMap[classKey] ??
-    presetClassMap[classIdKey] ??
-    ''
-  );
+  return customClassMap[classKey] ?? customClassMap[classIdKey] ?? '';
 };
 
-const tileFromPrediction = (prediction: RoboflowPrediction): string =>
-  mappedClassName(prediction.class, prediction.class_id) ||
-  normalizeClassName(prediction.class);
+const presetMappedClassName = (
+  className: string,
+  classId: number | null
+): string => {
+  const classKey = className.trim();
+  const classIdKey = classId === null ? '' : String(classId);
+  return presetClassMap[classKey] ?? presetClassMap[classIdKey] ?? '';
+};
+
+const tileFromPrediction = (prediction: RoboflowPrediction): string => {
+  const customTile = customMappedClassName(
+    prediction.class,
+    prediction.class_id
+  );
+  if (customTile) return customTile;
+
+  const labelTile = normalizeClassName(prediction.class);
+  if (labelTile) return labelTile;
+
+  return presetMappedClassName(prediction.class, prediction.class_id);
+};
 
 const normalizeClassName = (className: string): string => {
   const compact = className

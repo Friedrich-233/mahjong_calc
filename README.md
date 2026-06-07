@@ -79,7 +79,7 @@ https://docs.roboflow.com/deploy/serverless/object-detection
 | `ROBOFLOW_API_KEY` | Roboflow API key, server-side only | empty |
 | `ROBOFLOW_BASE_URL` | Hosted inference endpoint | `https://serverless.roboflow.com` |
 | `ROBOFLOW_MODEL` | Roboflow model id | `mj-detection/4` |
-| `ROBOFLOW_MODEL_PRESET` | Label adapter: `auto`, `wen-wu-37`, or `generic` | `wen-wu-37` |
+| `ROBOFLOW_MODEL_PRESET` | Label adapter: `auto`, `wen-wu-37`, `mpsz-labels`, or `generic` | `auto` |
 | `ROBOFLOW_CLASS_MAP` | Optional custom label map override | empty |
 | `ROBOFLOW_CONFIDENCE` | Detection confidence threshold, 0-100 | `30` |
 | `ROBOFLOW_OVERLAP` | Roboflow overlap/NMS setting, 0-100 | `30` |
@@ -90,6 +90,15 @@ The `wen-wu-37` preset maps numeric labels `0..33` to the 34 normal tile types
 and `34..36` to `0m/0p/0s` red fives. If that order is wrong for a different
 Roboflow model, override it with `ROBOFLOW_CLASS_MAP`, for example
 `0:1m,1:2m,34:0m`.
+
+For models that already emit mpsz-style labels such as `1m`, `1p`, `1s`, or
+`1z`, use `ROBOFLOW_MODEL_PRESET=auto` or `mpsz-labels`. For example, this model
+works through the direct label parser:
+
+```env
+ROBOFLOW_MODEL=mahjong-9xjry/1
+ROBOFLOW_MODEL_PRESET=auto
+```
 
 If predictions miss tiles, lower `ROBOFLOW_CONFIDENCE`. If duplicate boxes
 produce extra tiles, lower `ROBOFLOW_DEDUP_IOU` or raise `ROBOFLOW_CONFIDENCE`.
