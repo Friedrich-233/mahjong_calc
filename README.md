@@ -9,32 +9,6 @@
 
 Riichi-Mahjong score calculator app in the web browser.
 
-## 実行 - Run
-
-[麻雀得点計算機](https://mahjong-calc.livewing.net/)
-
-This app is available in Japanese, English, Simplified Chinese, and Korean. To translate the app to a new language, see [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-<img src="https://user-images.githubusercontent.com/7447366/107044000-11f10500-6807-11eb-99c9-198b481f0f3e.png" width="185" alt="QR Code" />
-
-## 使用方法 - How to use
-
-[使用方法](./doc/how-to-use.md) (Japanese)
-
-## 開発 - Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## ライセンス - License
-
-[The MIT License](./LICENSE)
-
-## クレジット - Credits
-
-麻雀牌の画像は [FluffyStuff/riichi-mahjong-tiles](https://github.com/FluffyStuff/riichi-mahjong-tiles) のものを使用しています ([CC BY](https://github.com/FluffyStuff/riichi-mahjong-tiles/blob/master/LICENSE.md)) 。
-
----
-
 # 📸 Roboflow YOLO recognition & self-hosting (fork branch)
 
 This branch adds a **"Photo" button** to the tile input and uses Roboflow Hosted
@@ -171,3 +145,9 @@ whether a Roboflow key is configured and which model/thresholds are active.
 - If recognition is wrong, fix the tiles with the normal controls or take another
   photo. If the backend is not configured or the call fails, you get a clear
   error and can still input the hand by hand.
+
+## Credits / Citations
+
+This fork is based on [livewing/mahjong-calc](https://github.com/livewing/mahjong-calc).
+
+The Roboflow YOLO branch cites the [mahjong-9xjry/1](https://universe.roboflow.com/tecky-nx4vn/mahjong-9xjry/model/1) model. In the hosted Roboflow API, this Universe model is currently accessed through the endpoint alias `mahjong-9xjry-fvhg7/1`.
