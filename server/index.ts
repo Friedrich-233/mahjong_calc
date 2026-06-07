@@ -17,6 +17,8 @@ const {
   ROBOFLOW_API_KEY,
   ROBOFLOW_BASE_URL,
   ROBOFLOW_MODEL,
+  ROBOFLOW_MODEL_PRESET,
+  ROBOFLOW_CLASS_MAP,
   ROBOFLOW_CONFIDENCE,
   ROBOFLOW_OVERLAP,
   ROBOFLOW_DEDUP_IOU
@@ -28,8 +30,24 @@ const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
 
 const roboflowBaseUrl =
   ROBOFLOW_BASE_URL?.replace(/\/+$/, '') || 'https://serverless.roboflow.com';
-const roboflowModel =
-  ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'majiang-z3y6n/1';
+const roboflowModel = ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'mj-detection/4';
+
+type ModelPreset = 'auto' | 'generic' | 'wen-wu-37';
+
+const normalizePreset = (preset: string | undefined): ModelPreset => {
+  const value = (preset ?? 'auto').toLowerCase();
+  return value === 'generic' || value === 'wen-wu-37' ? value : 'auto';
+};
+
+const inferPreset = (): Exclude<ModelPreset, 'auto'> => {
+  const explicit = normalizePreset(ROBOFLOW_MODEL_PRESET);
+  if (explicit !== 'auto') return explicit;
+  return roboflowModel.toLowerCase().includes('mj-detection')
+    ? 'wen-wu-37'
+    : 'generic';
+};
+
+const modelPreset = inferPreset();
 
 const parseNumber = (value: string | undefined, fallback: number): number => {
   const n = Number(value);
@@ -58,6 +76,7 @@ interface RoboflowPrediction {
   height: number;
   confidence: number;
   class: string;
+  class_id: number | null;
 }
 
 interface DetectedTile extends RoboflowPrediction {
@@ -94,6 +113,7 @@ const predictionFromUnknown = (value: unknown): RoboflowPrediction | null => {
   const width = numberValue(value.width);
   const height = numberValue(value.height);
   const confidence = numberValue(value.confidence);
+  const classId = numberValue(value.class_id);
   const className = value.class;
   if (
     x === null ||
@@ -105,8 +125,105 @@ const predictionFromUnknown = (value: unknown): RoboflowPrediction | null => {
   ) {
     return null;
   }
-  return { x, y, width, height, confidence, class: className };
+  return {
+    x,
+    y,
+    width,
+    height,
+    confidence,
+    class: className,
+    class_id: classId
+  };
 };
+
+const isValidMpszTile = (tile: string): boolean =>
+  /^[0-9][mps]$/.test(tile) || /^[1-7]z$/.test(tile);
+
+const WEN_WU_37_CLASS_MAP: Record<string, string> = {
+  '0': '1m',
+  '1': '2m',
+  '2': '3m',
+  '3': '4m',
+  '4': '5m',
+  '5': '6m',
+  '6': '7m',
+  '7': '8m',
+  '8': '9m',
+  '9': '1p',
+  '10': '2p',
+  '11': '3p',
+  '12': '4p',
+  '13': '5p',
+  '14': '6p',
+  '15': '7p',
+  '16': '8p',
+  '17': '9p',
+  '18': '1s',
+  '19': '2s',
+  '20': '3s',
+  '21': '4s',
+  '22': '5s',
+  '23': '6s',
+  '24': '7s',
+  '25': '8s',
+  '26': '9s',
+  '27': '1z',
+  '28': '2z',
+  '29': '3z',
+  '30': '4z',
+  '31': '5z',
+  '32': '6z',
+  '33': '7z',
+  '34': '0m',
+  '35': '0p',
+  '36': '0s'
+};
+
+const parseClassMap = (raw: string | undefined): Record<string, string> => {
+  if (!raw?.trim()) return {};
+  const trimmed = raw.trim();
+  const entries: Array<[string, string]> = [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (isRecord(parsed)) {
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === 'string') entries.push([key, value]);
+      }
+    }
+  } catch {
+    for (const item of trimmed.split(',')) {
+      const [key, value] = item.split(/[:=]/).map(part => part.trim());
+      if (key && value) entries.push([key, value]);
+    }
+  }
+
+  return Object.fromEntries(
+    entries
+      .map(([key, value]) => [key, value.toLowerCase()] as const)
+      .filter(([, value]) => isValidMpszTile(value))
+  );
+};
+
+const customClassMap = parseClassMap(ROBOFLOW_CLASS_MAP);
+
+const presetClassMap = modelPreset === 'wen-wu-37' ? WEN_WU_37_CLASS_MAP : {};
+
+const mappedClassName = (className: string, classId: number | null): string => {
+  const classKey = className.trim();
+  const classIdKey = classId === null ? '' : String(classId);
+  return (
+    customClassMap[classKey] ??
+    customClassMap[classIdKey] ??
+    presetClassMap[classKey] ??
+    presetClassMap[classIdKey] ??
+    ''
+  );
+};
+
+const tileFromPrediction = (prediction: RoboflowPrediction): string =>
+  mappedClassName(prediction.class, prediction.class_id) ||
+  normalizeClassName(prediction.class);
 
 const normalizeClassName = (className: string): string => {
   const compact = className
@@ -171,9 +288,6 @@ const normalizeClassName = (className: string): string => {
 
   return '';
 };
-
-const isValidMpszTile = (tile: string): boolean =>
-  /^[0-9][mps]$/.test(tile) || /^[1-7]z$/.test(tile);
 
 const iou = (a: RoboflowPrediction, b: RoboflowPrediction): number => {
   const ax1 = a.x - a.width / 2;
@@ -274,7 +388,7 @@ const recognitionFromRoboflow = (data: unknown) => {
   const detected = deduped
     .map(prediction => ({
       ...prediction,
-      tile: normalizeClassName(prediction.class)
+      tile: tileFromPrediction(prediction)
     }))
     .filter((prediction): prediction is DetectedTile =>
       isValidMpszTile(prediction.tile)
@@ -289,7 +403,7 @@ const recognitionFromRoboflow = (data: unknown) => {
     concealed: tilesToMpsz(orderedTiles),
     melds: [],
     winning_tile: orderedTiles[orderedTiles.length - 1] ?? null,
-    aka: []
+    aka: orderedTiles.filter(tile => tile.startsWith('0'))
   };
 };
 
@@ -302,6 +416,8 @@ app.get('/api/health', (_req, res) => {
     mode: 'roboflow-yolo',
     configured: Boolean(ROBOFLOW_API_KEY),
     model: roboflowModel,
+    model_preset: modelPreset,
+    custom_class_map: Object.keys(customClassMap).length > 0,
     base_url: roboflowBaseUrl,
     confidence: roboflowConfidence,
     overlap: roboflowOverlap,
@@ -344,6 +460,7 @@ app.listen(port, () => {
   console.log(`  serving static files from ${distDir}`);
   console.log('  recognition: Roboflow YOLO');
   console.log(`  Roboflow model: ${roboflowModel}`);
+  console.log(`  Roboflow model preset: ${modelPreset}`);
   console.log(`  Roboflow base URL: ${roboflowBaseUrl}`);
   console.log(
     `  confidence: ${roboflowConfidence}, overlap: ${roboflowOverlap}, dedupe_iou: ${dedupeIou}`

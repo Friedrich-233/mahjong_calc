@@ -45,8 +45,9 @@ browser.
 Current limitation: Roboflow object detection returns boxes and classes only.
 This branch sorts detected tiles visually, fills all detections as concealed
 tiles, and treats the last detected tile as the winning tile. It does **not**
-infer called melds, rotated tile direction, or red fives. Use it to compare pure
-YOLO tile classification quality.
+infer called melds or rotated tile direction. Red fives are filled only when the
+selected model emits separate red-five classes. Use it to compare pure YOLO tile
+classification quality.
 
 ## How it works
 
@@ -54,18 +55,18 @@ YOLO tile classification quality.
 - A tiny **Express backend** (`server/index.ts`):
   1. `POST /api/recognize` receives a browser-downscaled photo.
   2. The backend sends base64 image data to Roboflow.
-  3. Roboflow class names like `m1`, `p5`, `z7` are converted to mpsz.
+  3. Roboflow class labels are converted to mpsz through a model preset.
   4. The backend returns the same JSON contract the frontend already applies.
 - Frontend and backend are **same-origin** (one port, one container) -> no CORS.
 - The Roboflow API key lives only on the server. The browser only calls `/api`.
 
 Default model:
 
-`riichi-mahjong-tiles-y8hce/1`
+`mj-detection/4`
 
 Model page:
 
-https://universe.roboflow.com/stanislavs-workspace-iwibi/riichi-mahjong-tiles-y8hce/model/1
+https://universe.roboflow.com/wen-wu-mn6q9/mj-detection/model/4
 
 Roboflow Hosted API docs:
 
@@ -77,11 +78,18 @@ https://docs.roboflow.com/deploy/serverless/object-detection
 | --- | --- | --- |
 | `ROBOFLOW_API_KEY` | Roboflow API key, server-side only | empty |
 | `ROBOFLOW_BASE_URL` | Hosted inference endpoint | `https://serverless.roboflow.com` |
-| `ROBOFLOW_MODEL` | Roboflow model id | `riichi-mahjong-tiles-y8hce/1` |
+| `ROBOFLOW_MODEL` | Roboflow model id | `mj-detection/4` |
+| `ROBOFLOW_MODEL_PRESET` | Label adapter: `auto`, `wen-wu-37`, or `generic` | `wen-wu-37` |
+| `ROBOFLOW_CLASS_MAP` | Optional custom label map override | empty |
 | `ROBOFLOW_CONFIDENCE` | Detection confidence threshold, 0-100 | `30` |
 | `ROBOFLOW_OVERLAP` | Roboflow overlap/NMS setting, 0-100 | `30` |
 | `ROBOFLOW_DEDUP_IOU` | Extra server-side duplicate-box filter, 0-1 | `0.55` |
 | `PORT` | Port the server listens on inside the container | `5173` |
+
+The `wen-wu-37` preset maps numeric labels `0..33` to the 34 normal tile types
+and `34..36` to `0m/0p/0s` red fives. If that order is wrong for a different
+Roboflow model, override it with `ROBOFLOW_CLASS_MAP`, for example
+`0:1m,1:2m,34:0m`.
 
 If predictions miss tiles, lower `ROBOFLOW_CONFIDENCE`. If duplicate boxes
 produce extra tiles, lower `ROBOFLOW_DEDUP_IOU` or raise `ROBOFLOW_CONFIDENCE`.
@@ -126,7 +134,8 @@ Silicon and on a Raspberry Pi (arm64).
    branch, and the compose path `docker-compose.yml`.
 4. Under **Environment variables**, add:
    - `ROBOFLOW_API_KEY` - required
-   - optionally `ROBOFLOW_MODEL`, `ROBOFLOW_CONFIDENCE`, `ROBOFLOW_OVERLAP`,
+   - optionally `ROBOFLOW_MODEL`, `ROBOFLOW_MODEL_PRESET`,
+     `ROBOFLOW_CLASS_MAP`, `ROBOFLOW_CONFIDENCE`, `ROBOFLOW_OVERLAP`,
      `ROBOFLOW_DEDUP_IOU`
    - optionally `APP_PORT` - host port, default `5173`
 5. **Deploy the stack.** Portainer clones the repo and runs the multi-stage build
@@ -141,9 +150,10 @@ whether a Roboflow key is configured and which model/thresholds are active.
 ## What recognition fills
 
 - **Fills in this branch:** YOLO-detected tile classes, sorted into the hand; the
-  last detected tile is marked as the winning tile.
-- **Not filled in this branch:** melds, red fives, true winning-tile separation,
-  riichi / ippatsu / winds / dora / ron-tsumo / rule options.
+  last detected tile is marked as the winning tile. Red fives are filled if the
+  selected preset/map returns `0m`, `0p`, or `0s`.
+- **Not filled in this branch:** melds, true winning-tile separation, riichi /
+  ippatsu / winds / dora / ron-tsumo / rule options.
 - If recognition is wrong, fix the tiles with the normal controls or take another
   photo. If the backend is not configured or the call fails, you get a clear
   error and can still input the hand by hand.
