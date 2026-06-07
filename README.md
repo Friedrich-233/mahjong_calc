@@ -96,9 +96,14 @@ For models that already emit mpsz-style labels such as `1m`, `1p`, `1s`, or
 works through the direct label parser:
 
 ```env
-ROBOFLOW_MODEL=mahjong-9xjry/1
+ROBOFLOW_MODEL=mahjong-9xjry-fvhg7/1
 ROBOFLOW_MODEL_PRESET=auto
 ```
+
+If you copied the older Universe URL
+`https://universe.roboflow.com/tecky-nx4vn/mahjong-9xjry/model/1`, the backend
+will normalize it and alias `mahjong-9xjry/1` to the hosted endpoint
+`mahjong-9xjry-fvhg7/1`.
 
 If predictions miss tiles, lower `ROBOFLOW_CONFIDENCE`. If duplicate boxes
 produce extra tiles, lower `ROBOFLOW_DEDUP_IOU` or raise `ROBOFLOW_CONFIDENCE`.

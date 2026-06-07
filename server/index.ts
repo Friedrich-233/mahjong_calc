@@ -30,7 +30,39 @@ const distDir = DIST_DIR || path.resolve(__dirname, '..', 'dist');
 
 const roboflowBaseUrl =
   ROBOFLOW_BASE_URL?.replace(/\/+$/, '') || 'https://serverless.roboflow.com';
-const roboflowModel = ROBOFLOW_MODEL?.replace(/^\/+/, '') || 'mj-detection/4';
+
+const modelFromUrl = (value: string): string | null => {
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (url.hostname.includes('universe.roboflow.com')) {
+      const modelIndex = parts.indexOf('model');
+      const project = modelIndex > 0 ? parts[modelIndex - 1] : '';
+      const version = modelIndex >= 0 ? parts[modelIndex + 1] : '';
+      return project && version ? `${project}/${version}` : null;
+    }
+    if (url.hostname.includes('serverless.roboflow.com')) {
+      return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const normalizeModelId = (value: string | undefined): string =>
+  (value ? modelFromUrl(value) || value : 'mj-detection/4')
+    .trim()
+    .replace(/^\/+/, '');
+
+const MODEL_ALIASES: Record<string, string> = {
+  'mahjong-9xjry/1': 'mahjong-9xjry-fvhg7/1'
+};
+
+const configuredRoboflowModel = normalizeModelId(ROBOFLOW_MODEL);
+const roboflowModel =
+  MODEL_ALIASES[configuredRoboflowModel] ?? configuredRoboflowModel;
+const roboflowModelAliasApplied = roboflowModel !== configuredRoboflowModel;
 
 type ModelPreset = 'auto' | 'generic' | 'mpsz-labels' | 'wen-wu-37';
 
@@ -436,6 +468,8 @@ app.get('/api/health', (_req, res) => {
     mode: 'roboflow-yolo',
     configured: Boolean(ROBOFLOW_API_KEY),
     model: roboflowModel,
+    configured_model: configuredRoboflowModel,
+    model_alias_applied: roboflowModelAliasApplied,
     model_preset: modelPreset,
     custom_class_map: Object.keys(customClassMap).length > 0,
     base_url: roboflowBaseUrl,
@@ -480,6 +514,9 @@ app.listen(port, () => {
   console.log(`  serving static files from ${distDir}`);
   console.log('  recognition: Roboflow YOLO');
   console.log(`  Roboflow model: ${roboflowModel}`);
+  if (roboflowModelAliasApplied) {
+    console.log(`  Roboflow configured model: ${configuredRoboflowModel}`);
+  }
   console.log(`  Roboflow model preset: ${modelPreset}`);
   console.log(`  Roboflow base URL: ${roboflowBaseUrl}`);
   console.log(
